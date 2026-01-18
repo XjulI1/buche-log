@@ -10,6 +10,7 @@ export interface ConsumptionEntry {
   year: number
   notes?: string
   createdAt: Date
+  updatedAt?: Date
 }
 
 export interface ConsumptionFormData {

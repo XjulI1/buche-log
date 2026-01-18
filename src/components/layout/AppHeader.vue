@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import SyncStatus from '@/components/sync/SyncStatus.vue'
 
 const route = useRoute()
 
@@ -14,7 +15,10 @@ const titles: Record<string, string> = {
 
 <template>
   <header class="app-header">
-    <h1 class="app-title">{{ titles[route.name as string] ?? 'Buche-Log' }}</h1>
+    <div class="header-content">
+      <h1 class="app-title">{{ titles[route.name as string] ?? 'Buche-Log' }}</h1>
+      <SyncStatus />
+    </div>
   </header>
 </template>
 
@@ -26,6 +30,13 @@ const titles: Record<string, string> = {
   position: sticky;
   top: 0;
   z-index: 100;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
 .app-title {

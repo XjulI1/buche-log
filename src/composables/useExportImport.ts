@@ -1,17 +1,17 @@
 import { db } from '@/services/database/db'
-import type { Rack, ConsumptionEntry } from '@/types'
+import type { SyncableRack, SyncableConsumptionEntry } from '@/types'
 
 interface ExportData {
   version: number
   exportDate: string
-  racks: Rack[]
-  consumptions: ConsumptionEntry[]
+  racks: SyncableRack[]
+  consumptions: SyncableConsumptionEntry[]
 }
 
 export function useExportImport() {
   async function exportData(): Promise<string> {
-    const racks = await db.racks.toArray()
-    const consumptions = await db.consumptions.toArray()
+    const racks = await db.racks.filter((r) => !r.deletedAt).toArray()
+    const consumptions = await db.consumptions.filter((c) => !c.deletedAt).toArray()
 
     const data: ExportData = {
       version: 1,
@@ -47,18 +47,26 @@ export function useExportImport() {
     // Clear existing data
     await db.racks.clear()
     await db.consumptions.clear()
+    await db.syncQueue.clear()
+
+    const now = new Date()
 
     // Convert date strings back to Date objects
-    const racks = data.racks.map((r) => ({
+    const racks: SyncableRack[] = data.racks.map((r) => ({
       ...r,
       createdAt: new Date(r.createdAt),
-      updatedAt: new Date(r.updatedAt),
+      updatedAt: r.updatedAt ? new Date(r.updatedAt) : now,
+      deletedAt: null,
+      syncStatus: 'pending' as const,
     }))
 
-    const consumptions = data.consumptions.map((c) => ({
+    const consumptions: SyncableConsumptionEntry[] = data.consumptions.map((c) => ({
       ...c,
       date: new Date(c.date),
       createdAt: new Date(c.createdAt),
+      updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(c.createdAt),
+      deletedAt: null,
+      syncStatus: 'pending' as const,
     }))
 
     // Import data
@@ -90,6 +98,7 @@ export function useExportImport() {
   async function resetAllData() {
     await db.racks.clear()
     await db.consumptions.clear()
+    await db.syncQueue.clear()
   }
 
   return {

@@ -3,7 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useConsumptionStore } from '../consumptionStore'
 import { useRackStore } from '../rackStore'
 import * as consumptionRepo from '@/services/database/consumptionRepository'
-import type { ConsumptionEntry, ConsumptionFormData, Rack } from '@/types'
+import type { SyncableConsumptionEntry, ConsumptionFormData, SyncableRack } from '@/types'
 
 vi.mock('@/services/database/consumptionRepository')
 vi.mock('@/services/database/rackRepository', () => ({
@@ -11,7 +11,7 @@ vi.mock('@/services/database/rackRepository', () => ({
 }))
 
 describe('consumptionStore', () => {
-  const mockRack: Rack = {
+  const mockRack: SyncableRack = {
     id: 'rack-1',
     name: 'Test Rack',
     height: 150,
@@ -24,7 +24,7 @@ describe('consumptionStore', () => {
     updatedAt: new Date('2024-01-01'),
   }
 
-  const mockEntry: ConsumptionEntry = {
+  const mockEntry: SyncableConsumptionEntry = {
     id: 'entry-1',
     rackId: 'rack-1',
     type: 'consumption',
@@ -33,6 +33,7 @@ describe('consumptionStore', () => {
     weekNumber: 3,
     year: 2024,
     createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-15'),
   }
 
   const mockFormData: ConsumptionFormData = {

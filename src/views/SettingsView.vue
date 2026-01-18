@@ -6,6 +6,7 @@ import { useRackStore, useConsumptionStore } from '@/stores'
 import { useExportImport } from '@/composables'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseCard from '@/components/common/BaseCard.vue'
+import SyncSettings from '@/components/sync/SyncSettings.vue'
 
 const router = useRouter()
 const rackStore = useRackStore()
@@ -77,6 +78,10 @@ function goToRackConfig() {
 <template>
   <div class="page">
     <div class="settings-content">
+      <BaseCard title="Synchronisation">
+        <SyncSettings />
+      </BaseCard>
+
       <BaseCard title="Porte-buches">
         <div v-if="rack" class="rack-summary">
           <p>

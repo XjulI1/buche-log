@@ -1,26 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useExportImport } from '../useExportImport'
 import { db } from '@/services/database/db'
-import type { Rack, ConsumptionEntry } from '@/types'
+import type { SyncableRack, SyncableConsumptionEntry } from '@/types'
 
 // Mock the database
 vi.mock('@/services/database/db', () => ({
   db: {
     racks: {
+      filter: vi.fn(() => ({
+        toArray: vi.fn(),
+      })),
       toArray: vi.fn(),
       clear: vi.fn(),
       bulkAdd: vi.fn(),
     },
     consumptions: {
+      filter: vi.fn(() => ({
+        toArray: vi.fn(),
+      })),
       toArray: vi.fn(),
       clear: vi.fn(),
       bulkAdd: vi.fn(),
+    },
+    syncQueue: {
+      clear: vi.fn(),
     },
   },
 }))
 
 describe('useExportImport', () => {
-  const mockRack: Rack = {
+  const mockRack: SyncableRack = {
     id: 'rack-1',
     name: 'Test Rack',
     height: 150,
@@ -33,7 +42,7 @@ describe('useExportImport', () => {
     updatedAt: new Date('2024-01-01'),
   }
 
-  const mockConsumption: ConsumptionEntry = {
+  const mockConsumption: SyncableConsumptionEntry = {
     id: 'entry-1',
     rackId: 'rack-1',
     type: 'consumption',
@@ -42,6 +51,7 @@ describe('useExportImport', () => {
     weekNumber: 3,
     year: 2024,
     createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-15'),
   }
 
   beforeEach(() => {
@@ -50,8 +60,14 @@ describe('useExportImport', () => {
 
   describe('exportData', () => {
     it('should export racks and consumptions as JSON', async () => {
-      vi.mocked(db.racks.toArray).mockResolvedValue([mockRack])
-      vi.mocked(db.consumptions.toArray).mockResolvedValue([mockConsumption])
+      const mockFilterRacks = vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([mockRack]),
+      })
+      const mockFilterConsumptions = vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([mockConsumption]),
+      })
+      vi.mocked(db.racks.filter).mockImplementation(mockFilterRacks)
+      vi.mocked(db.consumptions.filter).mockImplementation(mockFilterConsumptions)
 
       const { exportData } = useExportImport()
       const result = await exportData()
@@ -64,8 +80,14 @@ describe('useExportImport', () => {
     })
 
     it('should handle empty database', async () => {
-      vi.mocked(db.racks.toArray).mockResolvedValue([])
-      vi.mocked(db.consumptions.toArray).mockResolvedValue([])
+      const mockFilterRacks = vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([]),
+      })
+      const mockFilterConsumptions = vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([]),
+      })
+      vi.mocked(db.racks.filter).mockImplementation(mockFilterRacks)
+      vi.mocked(db.consumptions.filter).mockImplementation(mockFilterConsumptions)
 
       const { exportData } = useExportImport()
       const result = await exportData()
@@ -90,6 +112,7 @@ describe('useExportImport', () => {
 
       expect(db.racks.clear).toHaveBeenCalled()
       expect(db.consumptions.clear).toHaveBeenCalled()
+      expect(db.syncQueue.clear).toHaveBeenCalled()
       expect(db.racks.bulkAdd).toHaveBeenCalled()
       expect(db.consumptions.bulkAdd).toHaveBeenCalled()
       expect(result).toEqual({ racks: 1, consumptions: 1 })
@@ -118,6 +141,7 @@ describe('useExportImport', () => {
             ...mockConsumption,
             date: '2024-01-15T00:00:00.000Z',
             createdAt: '2024-01-15T00:00:00.000Z',
+            updatedAt: '2024-01-15T00:00:00.000Z',
           },
         ],
       })
@@ -126,15 +150,18 @@ describe('useExportImport', () => {
       await importData(importJson)
 
       // Check that bulkAdd was called with Date objects
-      const racksCall = vi.mocked(db.racks.bulkAdd).mock.calls[0]?.[0] as Rack[] | undefined
+      const racksCall = vi.mocked(db.racks.bulkAdd).mock.calls[0]?.[0] as
+        | SyncableRack[]
+        | undefined
       expect(racksCall?.[0]?.createdAt).toBeInstanceOf(Date)
       expect(racksCall?.[0]?.updatedAt).toBeInstanceOf(Date)
 
       const consumptionsCall = vi.mocked(db.consumptions.bulkAdd).mock.calls[0]?.[0] as
-        | ConsumptionEntry[]
+        | SyncableConsumptionEntry[]
         | undefined
       expect(consumptionsCall?.[0]?.date).toBeInstanceOf(Date)
       expect(consumptionsCall?.[0]?.createdAt).toBeInstanceOf(Date)
+      expect(consumptionsCall?.[0]?.updatedAt).toBeInstanceOf(Date)
     })
   })
 
@@ -145,6 +172,7 @@ describe('useExportImport', () => {
 
       expect(db.racks.clear).toHaveBeenCalled()
       expect(db.consumptions.clear).toHaveBeenCalled()
+      expect(db.syncQueue.clear).toHaveBeenCalled()
     })
   })
 })
