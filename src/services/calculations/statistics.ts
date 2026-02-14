@@ -80,8 +80,8 @@ export function calculateYearlyStats(
 
 /**
  * Calcule le niveau actuel du porte-buches
- * Le niveau est calculé à partir du dernier rechargement,
- * moins les consommations enregistrées depuis
+ * Le niveau est calculé en partant de 0 et en appliquant les rechargements (ajouts)
+ * et consommations (retraits) dans l'ordre chronologique
  */
 export function calculateCurrentLevel(entries: ConsumptionEntry[]): number {
   if (entries.length === 0) return 0
@@ -93,10 +93,10 @@ export function calculateCurrentLevel(entries: ConsumptionEntry[]): number {
 
   for (const entry of sorted) {
     if (entry.type === 'reload') {
-      // Un rechargement remet le niveau à son pourcentage (généralement 100%)
-      currentLevel = entry.percentage
+      // Un rechargement ajoute du bois au niveau actuel (plafonné à 100%)
+      currentLevel = Math.min(100, currentLevel + entry.percentage)
     } else if (entry.type === 'consumption') {
-      // Une consommation diminue le niveau
+      // Une consommation diminue le niveau (plancher à 0%)
       currentLevel = Math.max(0, currentLevel - entry.percentage)
     }
   }

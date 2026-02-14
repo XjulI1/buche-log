@@ -46,10 +46,10 @@ function goToRackConfig() {
         </div>
 
         <div class="actions">
-          <BaseButton variant="primary" size="large" @click="goToConsumption">
+          <BaseButton variant="primary" size="medium" @click="goToConsumption">
             Consommation
           </BaseButton>
-          <BaseButton variant="secondary" size="large" @click="goToReload">
+          <BaseButton variant="secondary" size="medium" @click="goToReload">
             Rechargement
           </BaseButton>
         </div>

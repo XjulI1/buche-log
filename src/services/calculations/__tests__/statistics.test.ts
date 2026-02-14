@@ -208,7 +208,7 @@ describe('statistics calculations', () => {
       expect(calculateCurrentLevel(entries)).toBe(50) // 100 - 20 - 30
     })
 
-    it('should reset level on new reload', () => {
+    it('should add level on new reload', () => {
       const entries = [
         createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 10) }),
         createEntry({ type: 'consumption', percentage: 50, date: new Date(2024, 0, 12) }),
@@ -216,7 +216,8 @@ describe('statistics calculations', () => {
         createEntry({ type: 'consumption', percentage: 20, date: new Date(2024, 0, 17) }),
       ]
 
-      expect(calculateCurrentLevel(entries)).toBe(80) // New reload at 100, then -20
+      // 0 + 100 = 100, -50 = 50, +100 = 150 (capped at 100), -20 = 80
+      expect(calculateCurrentLevel(entries)).toBe(80)
     })
 
     it('should not go below 0', () => {
@@ -235,7 +236,19 @@ describe('statistics calculations', () => {
         createEntry({ type: 'reload', percentage: 80, date: new Date(2024, 0, 15) }),
       ]
 
-      expect(calculateCurrentLevel(entries)).toBe(80) // Reload sets to 80
+      // 0 + 100 = 100, -60 = 40, +80 = 120 (capped at 100)
+      expect(calculateCurrentLevel(entries)).toBe(100)
+    })
+
+    it('should add small reload to current level', () => {
+      const entries = [
+        createEntry({ type: 'reload', percentage: 70, date: new Date(2024, 0, 10) }),
+        createEntry({ type: 'consumption', percentage: 50, date: new Date(2024, 0, 12) }),
+        createEntry({ type: 'reload', percentage: 5, date: new Date(2024, 0, 15) }),
+      ]
+
+      // 0 + 70 = 70, -50 = 20, +5 = 25
+      expect(calculateCurrentLevel(entries)).toBe(25)
     })
   })
 })

@@ -221,6 +221,12 @@ class SyncService {
   private deserializeRack(rack: SyncableRack): SyncableRack {
     return {
       ...rack,
+      height: Number(rack.height),
+      width: Number(rack.width),
+      depth: Number(rack.depth),
+      logSize: Number(rack.logSize),
+      volumeM3: Number(rack.volumeM3),
+      volumeSteres: Number(rack.volumeSteres),
       createdAt: new Date(rack.createdAt),
       updatedAt: new Date(rack.updatedAt),
       deletedAt: rack.deletedAt ? new Date(rack.deletedAt) : null,
@@ -234,6 +240,9 @@ class SyncService {
   ): SyncableConsumptionEntry {
     return {
       ...consumption,
+      percentage: Number(consumption.percentage),
+      weekNumber: Number(consumption.weekNumber),
+      year: Number(consumption.year),
       date: new Date(consumption.date),
       createdAt: new Date(consumption.createdAt),
       updatedAt: new Date(consumption.updatedAt),

@@ -28,7 +28,7 @@ const percentage = computed(() => {
     </div>
     <div class="slider-container">
       <input
-        v-model="model"
+        v-model.number="model"
         type="range"
         class="base-slider"
         :min="minVal"
