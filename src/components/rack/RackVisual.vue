@@ -25,6 +25,20 @@ const levelColor = computed(() => {
           <div v-for="j in 4" :key="j" class="log"></div>
         </div>
       </div>
+      <div class="rack-indicators">
+        <div class="indicator" style="bottom: 15%">
+          <span class="indicator-line"></span>
+          <!-- <span class="indicator-label">15%</span> -->
+        </div>
+        <div class="indicator" style="bottom: 50%">
+          <span class="indicator-line"></span>
+          <!-- <span class="indicator-label">50%</span> -->
+        </div>
+        <div class="indicator" style="bottom: 85%">
+          <span class="indicator-line"></span>
+          <!-- <span class="indicator-label">85%</span> -->
+        </div>
+      </div>
     </div>
     <div class="rack-level">{{ level }}%</div>
   </div>
@@ -53,7 +67,9 @@ const levelColor = computed(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  transition: height 0.5s ease, background 0.3s ease;
+  transition:
+    height 0.5s ease,
+    background 0.3s ease;
 }
 
 .rack-logs {
@@ -85,5 +101,40 @@ const levelColor = computed(() => {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-text);
+}
+
+.rack-indicators {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.indicator-line {
+  flex: 1;
+  height: 1px;
+  background: var(--color-text);
+  opacity: 0.6;
+}
+
+.indicator-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+  padding-right: 4px;
+  min-width: 28px;
+  text-align: right;
 }
 </style>
