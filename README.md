@@ -29,38 +29,65 @@ Les buches plus courtes se tassent mieux, donc le coefficient de conversion vari
 
 ## Stack technique
 
-- **Vue.js 3** avec Composition API et TypeScript
-- **Pinia** pour le state management
-- **Dexie.js** pour le stockage IndexedDB
+- **Nuxt 4** (Vue 3 + Nitro) — front et API regroupes dans un meme projet
+- **Pinia** pour le state management (auto-importe via `@pinia/nuxt`)
+- **Dexie.js** pour le stockage offline (IndexedDB)
+- **Drizzle ORM** + **mysql2** pour la persistance serveur (MariaDB)
+- **bcryptjs** + **jsonwebtoken** pour l'authentification
 - **Chart.js** + vue-chartjs pour les graphiques
-- **vite-plugin-pwa** pour la Progressive Web App
-- **Vite** comme bundler
+- **@vite-pwa/nuxt** pour la Progressive Web App
 
 ## Structure du projet
 
 ```
-src/
-├── assets/styles/          # CSS (variables, reset, utilitaires)
+app/                          # Application Vue (UI)
+├── app.vue                   # Layout racine (NuxtPage)
+├── assets/styles/            # CSS (variables, reset, utilitaires)
 ├── components/
-│   ├── common/             # BaseButton, BaseInput, BaseCard, BaseSlider, BaseSelect
-│   ├── layout/             # AppHeader, AppNavigation
-│   ├── rack/               # RackForm, RackVisual, RackInfo
-│   ├── consumption/        # ConsumptionForm, ConsumptionList
-│   └── stats/              # ConsumptionChart, StatsTable
-├── composables/            # useWeek, useExportImport
+│   ├── common/               # BaseButton, BaseInput, BaseCard, BaseSlider, BaseSelect
+│   ├── layout/               # AppHeader, AppNavigation
+│   ├── rack/                 # RackForm, RackVisual, RackInfo
+│   ├── consumption/          # ConsumptionForm, ConsumptionList
+│   ├── stats/                # ConsumptionChart, StatsTable
+│   └── sync/                 # SyncSettings, SyncStatus
+├── composables/              # useWeek, useExportImport
+├── pages/                    # index, rack, consumption, stats, settings
+├── plugins/                  # sync.client.ts (init du syncStore)
 ├── services/
-│   ├── database/           # Configuration Dexie.js et repositories
-│   └── calculations/       # Formules steres, semaines ISO, statistiques
-├── stores/                 # Pinia stores (rackStore, consumptionStore)
-├── types/                  # Types TypeScript
-├── views/                  # Pages de l'application
-└── router/                 # Configuration Vue Router
+│   ├── database/             # Dexie + repositories
+│   ├── calculations/         # Formules steres, semaines ISO, statistiques
+│   └── sync/                 # apiClient, syncService
+└── stores/                   # Pinia stores (rackStore, consumptionStore, syncStore)
+
+server/                       # API (Nitro)
+├── api/
+│   ├── health.get.ts
+│   ├── auth/{register,login}.post.ts + me.get.ts
+│   ├── racks/{index,[id]}.{get,post,put,delete}.ts
+│   ├── consumptions/{index,[id]}.{get,post,put,delete}.ts
+│   └── sync/{index.post,status.get}.ts
+├── database/
+│   ├── schema.ts             # Source de verite Drizzle
+│   └── migrations/           # Migrations SQL (drizzle-kit)
+└── utils/
+    ├── db.ts                 # Pool mysql2 + client Drizzle
+    ├── auth.ts               # requireAuth(event) — verification JWT
+    ├── mappers.ts            # row -> API
+    └── sync.ts               # logique de synchronisation bidirectionnelle
+
+shared/types/                 # Types partages client/serveur
+public/                       # Icones PWA + favicon
+nuxt.config.ts
+drizzle.config.ts
+Dockerfile
 ```
 
 ## Installation
 
 ```sh
 yarn install
+cp .env.example .env          # ajuster les valeurs DB et JWT
+yarn db:migrate               # applique le schema MariaDB
 ```
 
 ## Developpement
@@ -69,30 +96,34 @@ yarn install
 yarn dev
 ```
 
-L'application sera disponible sur `http://localhost:5173`
+L'application est disponible sur `http://localhost:3000` (UI et `/api/*` sur la meme origine).
 
 ## Build de production
 
 ```sh
 yarn build
+yarn preview
 ```
 
-Les fichiers seront generes dans le dossier `dist/`
+Le build genere `.output/` (sortie Nitro).
 
 ## Autres commandes
 
 ```sh
-# Verification des types TypeScript
-yarn type-check
+yarn typecheck              # Verification des types TypeScript
+yarn lint                   # oxlint + eslint
+yarn test:unit              # Tests unitaires (Vitest)
+yarn format                 # Prettier sur app/ server/ shared/
+yarn db:generate            # Generer une migration depuis le schema Drizzle
+yarn db:migrate             # Appliquer les migrations
+yarn db:studio              # Interface Drizzle Studio
+```
 
-# Linter (oxlint + eslint)
-yarn lint
+## Docker
 
-# Tests unitaires
-yarn test:unit
-
-# Formatage du code
-yarn format
+```sh
+docker build -t buche-log .
+docker run -p 3000:3000 --env-file .env buche-log
 ```
 
 ## Utilisation
