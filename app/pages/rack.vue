@@ -2,12 +2,14 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useRackStore } from '~/stores'
+import { useRackStore } from '~/stores/rackStore'
 import RackForm from '~/components/rack/RackForm.vue'
 import type { RackFormData } from '#shared/types'
+import { useToast } from '~/composables/useToast'
 
 const router = useRouter()
 const rackStore = useRackStore()
+const toast = useToast()
 const { rack, loading } = storeToRefs(rackStore)
 
 onMounted(() => {
@@ -22,8 +24,8 @@ async function handleSubmit(data: RackFormData) {
       await rackStore.createRack(data)
     }
     router.push('/')
-  } catch {
-    // Error is handled in store
+  } catch (e) {
+    toast.showError(e)
   }
 }
 </script>

@@ -27,7 +27,6 @@
     "@vite-pwa/nuxt": "^1.0.5",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.5.1",
-    "dexie": "^4.2.1",
     "drizzle-orm": "^0.39.3",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.6.5",

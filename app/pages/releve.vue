@@ -2,7 +2,8 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useRackStore, useConsumptionStore } from '~/stores'
+import { useRackStore } from '~/stores/rackStore'
+import { useConsumptionStore } from '~/stores/consumptionStore'
 import BaseCard from '~/components/common/BaseCard.vue'
 import ReadingForm from '~/components/reading/ReadingForm.vue'
 import { useToast } from '~/composables/useToast'
@@ -32,8 +33,8 @@ async function handleSubmit(data: ConsumptionFormData) {
     await consumptionStore.addEntry(data)
     toast.show('Relevé enregistré')
     router.push('/')
-  } catch {
-    // Erreur geree dans le store
+  } catch (e) {
+    toast.showError(e)
   }
 }
 </script>

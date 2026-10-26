@@ -7,7 +7,7 @@ import type {
   SeasonStats,
   WeeklyStats,
 } from '#shared/types'
-import * as consumptionRepo from '~/services/database/consumptionRepository'
+import { apiClient } from '~/services/api'
 import {
   calculateConsumptions,
   calculateCurrentLevel,
@@ -73,7 +73,7 @@ export const useConsumptionStore = defineStore('consumption', () => {
     loading.value = true
     error.value = null
     try {
-      entries.value = await consumptionRepo.getConsumptionsByRack(rackStore.rack.id)
+      entries.value = await apiClient.getConsumptions(rackStore.rack.id)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement'
     } finally {
@@ -86,7 +86,7 @@ export const useConsumptionStore = defineStore('consumption', () => {
     loading.value = true
     error.value = null
     try {
-      const entry = await consumptionRepo.createConsumption(rackStore.rack.id, data)
+      const entry = await apiClient.createConsumption(rackStore.rack.id, data)
       entries.value = [entry, ...entries.value]
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de l\'ajout'
@@ -100,10 +100,8 @@ export const useConsumptionStore = defineStore('consumption', () => {
     loading.value = true
     error.value = null
     try {
-      const updated = await consumptionRepo.updateConsumption(id, data)
-      if (updated) {
-        entries.value = entries.value.map((e) => (e.id === id ? updated : e))
-      }
+      const updated = await apiClient.updateConsumption(id, data)
+      entries.value = entries.value.map((e) => (e.id === id ? updated : e))
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la modification'
       throw e
@@ -116,22 +114,8 @@ export const useConsumptionStore = defineStore('consumption', () => {
     loading.value = true
     error.value = null
     try {
-      await consumptionRepo.deleteConsumption(id)
+      await apiClient.deleteConsumption(id)
       entries.value = entries.value.filter((e) => e.id !== id)
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Erreur lors de la suppression'
-      throw e
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function clearAll() {
-    loading.value = true
-    error.value = null
-    try {
-      await consumptionRepo.deleteAllConsumptions()
-      entries.value = []
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la suppression'
       throw e
@@ -162,7 +146,6 @@ export const useConsumptionStore = defineStore('consumption', () => {
     addEntry,
     updateEntry,
     deleteEntry,
-    clearAll,
     getSeasonStats,
   }
 })

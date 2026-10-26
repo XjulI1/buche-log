@@ -1,39 +1,35 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
-import { consumptions } from '../../database/schema'
+import { consumptions, racks } from '../../database/schema'
+import { parseReadingInput } from '../../utils/inputs'
 import { consumptionRowToApi } from '../../utils/mappers'
-
-interface CreateConsumptionBody {
-  id?: string
-  rackId: string
-  level: number
-  reloadFrom?: number | null
-  reloadTo?: number | null
-  date: string | Date
-  weekNumber: number
-  year: number
-  notes?: string | null
-}
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  const body = await readBody<CreateConsumptionBody>(event)
-
-  const id = body.id || uuidv4()
-  const now = new Date()
+  const body = await readBody<{ rackId?: string }>(event)
+  const input = parseReadingInput(body)
   const db = useDb()
+
+  const [rack] = await db
+    .select({ id: racks.id })
+    .from(racks)
+    .where(
+      and(eq(racks.id, String(body?.rackId)), eq(racks.userId, user.id), isNull(racks.deletedAt)),
+    )
+    .limit(1)
+
+  if (!rack) {
+    throw createError({ statusCode: 404, statusMessage: 'Rack not found' })
+  }
+
+  const id = uuidv4()
+  const now = new Date()
 
   await db.insert(consumptions).values({
     id,
     userId: user.id,
-    rackId: body.rackId,
-    level: body.level,
-    reloadFrom: body.reloadFrom ?? null,
-    reloadTo: body.reloadTo ?? null,
-    date: new Date(body.date),
-    weekNumber: body.weekNumber,
-    year: body.year,
-    notes: body.notes ?? null,
+    rackId: rack.id,
+    ...input,
     createdAt: now,
     updatedAt: now,
   })

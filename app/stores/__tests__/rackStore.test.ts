@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRackStore } from '../rackStore'
-import * as rackRepo from '~/services/database/rackRepository'
+import { apiClient } from '~/services/api'
 import type { Rack, RackFormData } from '#shared/types'
 
-vi.mock('~/services/database/rackRepository')
+vi.mock('~/services/api', () => ({
+  apiClient: {
+    getRacks: vi.fn(),
+    createRack: vi.fn(),
+    updateRack: vi.fn(),
+    deleteRack: vi.fn(),
+  },
+}))
 
 describe('rackStore', () => {
   const mockRack: Rack = {
@@ -44,20 +51,20 @@ describe('rackStore', () => {
   })
 
   describe('loadRack', () => {
-    it('should load default rack', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockResolvedValue(mockRack)
+    it('should load the first rack as default', async () => {
+      vi.mocked(apiClient.getRacks).mockResolvedValue([mockRack])
 
       const store = useRackStore()
       await store.loadRack()
 
-      expect(rackRepo.getDefaultRack).toHaveBeenCalled()
+      expect(apiClient.getRacks).toHaveBeenCalled()
       expect(store.rack).toEqual(mockRack)
       expect(store.hasRack).toBe(true)
       expect(store.volumeSteres).toBe(1.07)
     })
 
     it('should handle no rack found', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockResolvedValue(undefined)
+      vi.mocked(apiClient.getRacks).mockResolvedValue([])
 
       const store = useRackStore()
       await store.loadRack()
@@ -67,7 +74,7 @@ describe('rackStore', () => {
     })
 
     it('should handle loading errors', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockRejectedValue(new Error('Database error'))
+      vi.mocked(apiClient.getRacks).mockRejectedValue(new Error('Database error'))
 
       const store = useRackStore()
       await store.loadRack()
@@ -77,8 +84,8 @@ describe('rackStore', () => {
     })
 
     it('should set loading state', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockRack), 10)),
+      vi.mocked(apiClient.getRacks).mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve([mockRack]), 10)),
       )
 
       const store = useRackStore()
@@ -92,17 +99,17 @@ describe('rackStore', () => {
 
   describe('createRack', () => {
     it('should create a new rack', async () => {
-      vi.mocked(rackRepo.createRack).mockResolvedValue(mockRack)
+      vi.mocked(apiClient.createRack).mockResolvedValue(mockRack)
 
       const store = useRackStore()
       await store.createRack(mockFormData)
 
-      expect(rackRepo.createRack).toHaveBeenCalledWith(mockFormData)
+      expect(apiClient.createRack).toHaveBeenCalledWith(mockFormData)
       expect(store.rack).toEqual(mockRack)
     })
 
     it('should handle creation errors', async () => {
-      vi.mocked(rackRepo.createRack).mockRejectedValue(new Error('Creation failed'))
+      vi.mocked(apiClient.createRack).mockRejectedValue(new Error('Creation failed'))
 
       const store = useRackStore()
 
@@ -114,14 +121,14 @@ describe('rackStore', () => {
   describe('updateRack', () => {
     it('should update existing rack', async () => {
       const updatedRack = { ...mockRack, name: 'Updated Rack' }
-      vi.mocked(rackRepo.getDefaultRack).mockResolvedValue(mockRack)
-      vi.mocked(rackRepo.updateRack).mockResolvedValue(updatedRack)
+      vi.mocked(apiClient.getRacks).mockResolvedValue([mockRack])
+      vi.mocked(apiClient.updateRack).mockResolvedValue(updatedRack)
 
       const store = useRackStore()
       await store.loadRack()
       await store.updateRack({ ...mockFormData, name: 'Updated Rack' })
 
-      expect(rackRepo.updateRack).toHaveBeenCalledWith('rack-1', { ...mockFormData, name: 'Updated Rack' })
+      expect(apiClient.updateRack).toHaveBeenCalledWith('rack-1', { ...mockFormData, name: 'Updated Rack' })
       expect(store.rack?.name).toBe('Updated Rack')
     })
 
@@ -129,12 +136,12 @@ describe('rackStore', () => {
       const store = useRackStore()
       await store.updateRack(mockFormData)
 
-      expect(rackRepo.updateRack).not.toHaveBeenCalled()
+      expect(apiClient.updateRack).not.toHaveBeenCalled()
     })
 
     it('should handle update errors', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockResolvedValue(mockRack)
-      vi.mocked(rackRepo.updateRack).mockRejectedValue(new Error('Update failed'))
+      vi.mocked(apiClient.getRacks).mockResolvedValue([mockRack])
+      vi.mocked(apiClient.updateRack).mockRejectedValue(new Error('Update failed'))
 
       const store = useRackStore()
       await store.loadRack()
@@ -146,14 +153,14 @@ describe('rackStore', () => {
 
   describe('deleteRack', () => {
     it('should delete existing rack', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockResolvedValue(mockRack)
-      vi.mocked(rackRepo.deleteRack).mockResolvedValue(undefined)
+      vi.mocked(apiClient.getRacks).mockResolvedValue([mockRack])
+      vi.mocked(apiClient.deleteRack).mockResolvedValue(undefined)
 
       const store = useRackStore()
       await store.loadRack()
       await store.deleteRack()
 
-      expect(rackRepo.deleteRack).toHaveBeenCalledWith('rack-1')
+      expect(apiClient.deleteRack).toHaveBeenCalledWith('rack-1')
       expect(store.rack).toBeNull()
       expect(store.hasRack).toBe(false)
     })
@@ -162,12 +169,12 @@ describe('rackStore', () => {
       const store = useRackStore()
       await store.deleteRack()
 
-      expect(rackRepo.deleteRack).not.toHaveBeenCalled()
+      expect(apiClient.deleteRack).not.toHaveBeenCalled()
     })
 
     it('should handle deletion errors', async () => {
-      vi.mocked(rackRepo.getDefaultRack).mockResolvedValue(mockRack)
-      vi.mocked(rackRepo.deleteRack).mockRejectedValue(new Error('Delete failed'))
+      vi.mocked(apiClient.getRacks).mockResolvedValue([mockRack])
+      vi.mocked(apiClient.deleteRack).mockRejectedValue(new Error('Delete failed'))
 
       const store = useRackStore()
       await store.loadRack()

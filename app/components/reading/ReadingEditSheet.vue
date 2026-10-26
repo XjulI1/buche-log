@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia'
 import BaseSheet from '~/components/common/BaseSheet.vue'
 import ReadingForm from './ReadingForm.vue'
 import type { ConsumptionEntry, ConsumptionFormData } from '#shared/types'
-import { useConsumptionStore } from '~/stores'
+import { useConsumptionStore } from '~/stores/consumptionStore'
 import { useToast } from '~/composables/useToast'
 import { formatDayLabel } from '~/services/calculations'
 
@@ -25,8 +25,8 @@ async function handleSubmit(data: ConsumptionFormData) {
     await consumptionStore.updateEntry(props.entry.id, data)
     toast.show('Relevé modifié')
     emit('close')
-  } catch {
-    // Erreur geree dans le store
+  } catch (e) {
+    toast.showError(e)
   }
 }
 
@@ -37,8 +37,8 @@ async function handleDelete() {
     await consumptionStore.deleteEntry(props.entry.id)
     toast.show('Relevé supprimé')
     emit('close')
-  } catch {
-    // Erreur geree dans le store
+  } catch (e) {
+    toast.showError(e)
   }
 }
 </script>

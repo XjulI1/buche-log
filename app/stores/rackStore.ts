@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Rack, RackFormData } from '#shared/types'
-import * as rackRepo from '~/services/database/rackRepository'
+import { apiClient } from '~/services/api'
 
 export const useRackStore = defineStore('rack', () => {
   const rack = ref<Rack | null>(null)
@@ -15,7 +15,8 @@ export const useRackStore = defineStore('rack', () => {
     loading.value = true
     error.value = null
     try {
-      rack.value = (await rackRepo.getDefaultRack()) ?? null
+      // Porte-buches par defaut : le plus ancien (le serveur trie par date de creation)
+      rack.value = (await apiClient.getRacks())[0] ?? null
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement'
     } finally {
@@ -27,7 +28,7 @@ export const useRackStore = defineStore('rack', () => {
     loading.value = true
     error.value = null
     try {
-      rack.value = await rackRepo.createRack(data)
+      rack.value = await apiClient.createRack(data)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la creation'
       throw e
@@ -41,8 +42,7 @@ export const useRackStore = defineStore('rack', () => {
     loading.value = true
     error.value = null
     try {
-      const updated = await rackRepo.updateRack(rack.value.id, data)
-      if (updated) rack.value = updated
+      rack.value = await apiClient.updateRack(rack.value.id, data)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la mise a jour'
       throw e
@@ -56,7 +56,7 @@ export const useRackStore = defineStore('rack', () => {
     loading.value = true
     error.value = null
     try {
-      await rackRepo.deleteRack(rack.value.id)
+      await apiClient.deleteRack(rack.value.id)
       rack.value = null
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la suppression'

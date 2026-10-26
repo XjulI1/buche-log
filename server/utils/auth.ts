@@ -1,12 +1,8 @@
 import type { H3Event } from 'h3'
 import jwt from 'jsonwebtoken'
 import { eq } from 'drizzle-orm'
+import type { AuthUser } from '#shared/types'
 import { users } from '../database/schema'
-
-export interface AuthUser {
-  id: string
-  email: string
-}
 
 export async function requireAuth(event: H3Event): Promise<AuthUser> {
   const header = getHeader(event, 'authorization')

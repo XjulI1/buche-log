@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { storeToRefs } from 'pinia'
 import BaseButton from '~/components/common/BaseButton.vue'
-import { useSyncStore } from '~/stores/syncStore'
 import { usePushReminder } from '~/composables/usePushReminder'
 import { useToast } from '~/composables/useToast'
 
-const syncStore = useSyncStore()
-const { isAuthenticated } = storeToRefs(syncStore)
 const toast = useToast()
 const reminder = usePushReminder()
 const { isSubscribed, permission, preferences, busy, error } = reminder
@@ -48,10 +44,6 @@ async function test() {
     </p>
     <p v-else-if="!reminder.isConfigured" class="info">
       Les notifications ne sont pas configurées sur le serveur (clés VAPID manquantes).
-    </p>
-    <p v-else-if="!isAuthenticated" class="info">
-      Connectez-vous à la synchronisation : le serveur doit connaître vos relevés pour savoir
-      s'il faut vous rappeler.
     </p>
     <p v-else-if="permission === 'denied'" class="info">
       Les notifications sont bloquées pour ce site. Autorisez-les dans les réglages du navigateur.

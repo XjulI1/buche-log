@@ -5,7 +5,8 @@ import LevelPicker from './LevelPicker.vue'
 import LevelStepper from './LevelStepper.vue'
 import BaseButton from '~/components/common/BaseButton.vue'
 import type { ConsumptionEntry, ConsumptionFormData } from '#shared/types'
-import { useRackStore, useConsumptionStore } from '~/stores'
+import { useRackStore } from '~/stores/rackStore'
+import { useConsumptionStore } from '~/stores/consumptionStore'
 import {
   addDays,
   calculateConsumptionSteres,

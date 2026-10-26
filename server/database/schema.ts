@@ -108,13 +108,6 @@ export const pushSubscriptions = mysqlTable(
   }),
 )
 
-export const syncMetadata = mysqlTable('sync_metadata', {
-  userId: varchar('user_id', { length: 36 })
-    .primaryKey()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  lastSyncTimestamp: datetime('last_sync_timestamp').notNull(),
-})
-
 export type UserRow = typeof users.$inferSelect
 export type RackRow = typeof racks.$inferSelect
 export type ConsumptionRow = typeof consumptions.$inferSelect

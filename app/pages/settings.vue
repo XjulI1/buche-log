@@ -2,12 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useRackStore, useConsumptionStore } from '~/stores'
-import { useExportImport } from '~/composables'
+import { useRackStore } from '~/stores/rackStore'
+import { useConsumptionStore } from '~/stores/consumptionStore'
+import { useExportImport } from '~/composables/useExportImport'
 import BaseButton from '~/components/common/BaseButton.vue'
 import BaseCard from '~/components/common/BaseCard.vue'
-import SyncSettings from '~/components/sync/SyncSettings.vue'
-import PushReminderSettings from '~/components/sync/PushReminderSettings.vue'
+import AccountSettings from '~/components/account/AccountSettings.vue'
+import PushReminderSettings from '~/components/account/PushReminderSettings.vue'
 
 const router = useRouter()
 const rackStore = useRackStore()
@@ -79,8 +80,8 @@ function goToRackConfig() {
 <template>
   <div class="page">
     <div class="settings-content">
-      <BaseCard title="Synchronisation">
-        <SyncSettings />
+      <BaseCard title="Compte">
+        <AccountSettings />
       </BaseCard>
 
       <BaseCard title="Rappel hebdomadaire">

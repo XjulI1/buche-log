@@ -31,31 +31,32 @@ Application Nuxt 4 unique (PWA + API) de suivi de consommation de bois de chauff
 ```
 UI (app/pages, app/components)
   -> Pinia stores (app/stores)
-    -> Local: repositories Dexie (app/services/database)
-    -> Remote (sync): apiClient -> /api/* -> Nitro handlers -> Drizzle -> MariaDB
+    -> apiClient (app/services/api) -> /api/* -> Nitro handlers -> Drizzle -> MariaDB
 ```
 
 ### Key Layers
 
 - **app/** : application Vue 3 (auto-importee par Nuxt)
-  - `pages/` : routing fichier-base (index, releve, historique, stats, rack, settings)
-  - `components/` : organises par domaine (common, layout, rack, reading, stats, sync)
-  - `composables/` : useWeek, useExportImport, useBreakpoint (mobile / desktop >= 900px), useToast, usePushReminder
-  - `stores/` : Pinia stores (rackStore, consumptionStore, syncStore) — auto-importes via `@pinia/nuxt`
-  - `services/database/` : Dexie + repositories (stockage local IndexedDB)
+  - `pages/` : routing fichier-base (index, login, releve, historique, stats, rack, settings)
+  - `components/` : organises par domaine (account, common, layout, rack, reading, stats)
+  - `composables/` : useWeek, useExportImport, useBreakpoint (mobile / desktop >= 900px), useToast, usePushReminder, useOnlineStatus
+  - `stores/` : Pinia stores (authStore, rackStore, consumptionStore) — auto-importes via `@pinia/nuxt`
   - `services/calculations/` : formules steres, semaines ISO, saisons de chauffe, statistiques et prevision
-  - `services/sync/` : apiClient ($fetch sur `/api/*` relatif) + syncService (file d'attente offline)
-  - `plugins/sync.client.ts` : initialise le syncStore au montage (client-only)
+  - `services/api/` : apiClient (`fetch` sur `/api/*` relatif, token Bearer, deserialisation des dates, `NetworkError` / `ApiError`)
+  - `middleware/auth.global.ts` : redirige vers `/login` sans session
+  - `plugins/auth.client.ts` : restaure la session et deconnecte sur un 401 (client-only)
 - **server/** : API Nitro
   - `api/` : handlers Nitro (un fichier par endpoint, conventions `[id].get.ts`, `[id].post.ts`, etc.)
-  - `database/schema.ts` : source de verite Drizzle (users, racks, consumptions, sync_metadata)
-  - `database/migrations/` : migrations generees par drizzle-kit
+  - `database/schema.ts` : source de verite Drizzle (users, racks, consumptions, push_subscriptions)
+  - `database/migrations/` : migrations SQL ecrites a la main
   - `utils/db.ts` : pool mysql2 + client Drizzle (singleton via `useDb()`)
   - `utils/auth.ts` : `requireAuth(event)` — verifie le JWT et attache `event.context.user`
+  - `utils/inputs.ts` : validation des body (`parseRackInput` recalcule les volumes, `parseReadingInput`)
+  - `utils/importData.ts` : preparation d'un import (ids regeneres, conversion v1)
+  - `utils/userData.ts` : soft delete de toutes les donnees d'un utilisateur
   - `utils/mappers.ts` : conversion lignes DB -> objets API
-  - `utils/sync.ts` : logique last-write-wins de la sync bidirectionnelle
-- **shared/utils/** : code partage client/serveur (`isoWeek`, `legacyReadings` = conversion des anciennes saisies)
-- **shared/types/** : types TypeScript partages client/serveur (`Rack`, `ConsumptionEntry`, `SyncRequest`, etc.). Importables via `#shared/types`.
+- **shared/utils/** : code partage client/serveur (`isoWeek`, `stere`, `legacyReadings` = conversion des anciennes saisies)
+- **shared/types/** : types TypeScript partages client/serveur (`Rack`, `ConsumptionEntry`, `ExportData`, `AuthResponse`, etc.). Importables via `#shared/types`.
 
 ### Releves de niveau
 
@@ -65,7 +66,7 @@ et juste apres (`reloadTo`). La consommation d'un releve est deduite du releve p
 `(precedent - reloadFrom) + (reloadTo - level)`, ou `precedent - level` sans rechargement.
 
 Les anciennes saisies (`type` + `percentage`, par delta) sont converties par `convertLegacyEntries` :
-migration Dexie v4 cote client, plugin `server/plugins/migrate-readings.ts` cote serveur, import d'un export v1.
+plugin `server/plugins/migrate-readings.ts` au demarrage du serveur, et import d'un export v1 (`server/utils/importData.ts`).
 
 Les statistiques sont calculees par **saison de chauffe** (1er octobre -> 30 septembre, cf. `season.ts`).
 
@@ -80,18 +81,20 @@ Formula: `steres = volume_m3 / coefficient`
 
 ### Persistence
 
-- **Offline (PWA)** : IndexedDB via Dexie.js (`app/services/database/db.ts`). Tables : `racks`, `consumptions`, `syncQueue`, `syncConfig`.
-- **Online (serveur)** : MariaDB via Drizzle + mysql2 (`server/database/schema.ts`). Tables : `users`, `racks`, `consumptions`, `sync_metadata`. Soft-deletes via `deleted_at`.
+Donnees uniquement cote serveur : MariaDB via Drizzle + mysql2 (`server/database/schema.ts`). Pas de stockage
+local des donnees (le mode offline et la synchronisation ont ete supprimes). Soft-deletes via `deleted_at`.
 
-### Sync
-
-Le `syncService` (singleton client) gere une file d'attente locale (`db.syncQueue`). Quand le client est en ligne et configure, il envoie un `POST /api/sync` avec les changements locaux + son `lastSyncTimestamp`, et recoit en retour les changements serveur depuis cette date. Strategie de resolution de conflits : last-write-wins sur `updated_at`. L'API est **same-origin** (Nuxt sert front et API), donc l'URL n'est pas configurable cote utilisateur.
+API REST same-origin (Nuxt sert front et API) :
+- `racks/*`, `consumptions/*` (`GET /api/consumptions?rackId=`) : CRUD. Les ids sont generes par le serveur,
+  les volumes des porte-buches sont recalcules par le serveur, la semaine ISO d'un releve est fournie par le client
+  (fuseau horaire de l'utilisateur).
+- `data` : `GET` export JSON v2, `PUT` import (remplace toutes les donnees, transaction), `DELETE` reinitialisation.
 
 ### Auth
 
 - bcryptjs (cost 10) pour les mots de passe
 - JWT (365 jours) genere par `jsonwebtoken`, signe avec `runtimeConfig.jwtSecret`
-- Token stocke cote client dans Dexie (`syncConfig`) et cote serveur dans `users.api_token`
+- Connexion obligatoire. Token stocke cote client dans `localStorage` (`buche-log:token`) et cote serveur dans `users.api_token`
 - Middleware utilitaire `requireAuth(event)` a appeler en tete de chaque handler protege
 
 ### Runtime Config
@@ -113,14 +116,14 @@ le texte est fixe dans `public/push-sw.js`, charge par le service worker via `wo
 ### Migrations SQL
 
 Les fichiers de `server/database/migrations/` sont ecrits a la main et appliques dans l'ordre
-(`0000_baseline.sql`, `0001_readings.sql`, `0002_push_subscriptions.sql`).
+(`0000_baseline.sql`, `0001_readings.sql`, `0002_push_subscriptions.sql`, `0003_drop_sync_metadata.sql`).
 
 ### PWA
 
-Configuree via `@vite-pwa/nuxt` dans `nuxt.config.ts`. Service worker auto-updates. Les requetes `/api/*` sont exclues du cache SW (`navigateFallbackDenylist`). Icones SVG/PNG dans `public/`.
+Configuree via `@vite-pwa/nuxt` dans `nuxt.config.ts`. Service worker auto-updates. Seul le shell de l'app est mis en cache : les requetes `/api/*` en sont exclues (`navigateFallbackDenylist`), et un bandeau previent quand le reseau manque. Icones SVG/PNG dans `public/`.
 
 ### Important
 
-- `ssr: false` dans `nuxt.config.ts` : l'application tourne en SPA (PWA), car Dexie/IndexedDB est navigateur-only.
-- Le plugin `sync.client.ts` est suffixe `.client` pour ne s'executer que cote client.
+- `ssr: false` dans `nuxt.config.ts` : l'application tourne en SPA (PWA).
+- Le plugin `auth.client.ts` est suffixe `.client` pour ne s'executer que cote client.
 - Aliases : `~/` pointe sur `app/`, `#shared/` pointe sur `shared/`.

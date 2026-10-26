@@ -2,12 +2,16 @@
 import AppHeader from '~/components/layout/AppHeader.vue'
 import AppNavigation from '~/components/layout/AppNavigation.vue'
 import AppToast from '~/components/common/AppToast.vue'
+import OfflineBanner from '~/components/common/OfflineBanner.vue'
+
+const route = useRoute()
 </script>
 
 <template>
   <div class="app">
-    <AppNavigation />
+    <AppNavigation v-if="route.name !== 'login'" />
     <div class="app-main">
+      <OfflineBanner />
       <AppHeader />
       <main class="main-content">
         <NuxtPage />

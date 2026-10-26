@@ -13,5 +13,10 @@ export function useToast() {
     timer = setTimeout(() => (message.value = null), duration)
   }
 
-  return { message, show }
+  /** Affiche l'erreur d'une action (ex. serveur injoignable) */
+  function showError(error: unknown, fallback = 'Une erreur est survenue') {
+    show(error instanceof Error ? error.message : fallback, 4000)
+  }
+
+  return { message, show, showError }
 }

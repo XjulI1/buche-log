@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { apiClient } from '~/services/sync'
+import { apiClient } from '~/services/api'
 
 const STORAGE_KEY = 'buche-log:push-reminder'
 

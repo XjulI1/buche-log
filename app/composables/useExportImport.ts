@@ -1,27 +1,9 @@
-import { db } from '~/services/database/db'
-import type { SyncableRack, SyncableConsumptionEntry } from '#shared/types'
-import { convertLegacyEntries, type LegacyEntry } from '#shared/utils/legacyReadings'
-
-interface ExportData {
-  version: number
-  exportDate: string
-  racks: SyncableRack[]
-  consumptions: SyncableConsumptionEntry[]
-}
+import { apiClient } from '~/services/api'
+import type { ExportData, ImportResult } from '#shared/types'
 
 export function useExportImport() {
   async function exportData(): Promise<string> {
-    const racks = await db.racks.filter((r) => !r.deletedAt).toArray()
-    const consumptions = await db.consumptions.filter((c) => !c.deletedAt).toArray()
-
-    const data: ExportData = {
-      version: 2,
-      exportDate: new Date().toISOString(),
-      racks,
-      consumptions,
-    }
-
-    return JSON.stringify(data, null, 2)
+    return JSON.stringify(await apiClient.exportData(), null, 2)
   }
 
   async function downloadExport() {
@@ -38,55 +20,18 @@ export function useExportImport() {
     URL.revokeObjectURL(url)
   }
 
-  async function importData(jsonString: string): Promise<{ racks: number; consumptions: number }> {
+  /** Remplace les donnees du compte par celles du fichier (la conversion v1 est faite par le serveur) */
+  async function importData(jsonString: string): Promise<ImportResult> {
     const data: ExportData = JSON.parse(jsonString)
 
     if (!data.version || !data.racks || !data.consumptions) {
       throw new Error('Format de fichier invalide')
     }
 
-    // Clear existing data
-    await db.racks.clear()
-    await db.consumptions.clear()
-    await db.syncQueue.clear()
-
-    const now = new Date()
-
-    // Convert date strings back to Date objects
-    const racks: SyncableRack[] = data.racks.map((r) => ({
-      ...r,
-      createdAt: new Date(r.createdAt),
-      updatedAt: r.updatedAt ? new Date(r.updatedAt) : now,
-      deletedAt: null,
-      syncStatus: 'pending' as const,
-    }))
-
-    // Export v1 : saisies par delta (type + percentage) a convertir en releves de niveau
-    const legacy = data.version < 2
-      ? convertLegacyEntries(data.consumptions as unknown as LegacyEntry[])
-      : null
-
-    const consumptions: SyncableConsumptionEntry[] = data.consumptions.map((c) => ({
-      ...c,
-      ...(legacy?.get(c.id) ?? {}),
-      date: new Date(c.date),
-      createdAt: new Date(c.createdAt),
-      updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(c.createdAt),
-      deletedAt: null,
-      syncStatus: 'pending' as const,
-    }))
-
-    // Import data
-    await db.racks.bulkAdd(racks)
-    await db.consumptions.bulkAdd(consumptions)
-
-    return {
-      racks: racks.length,
-      consumptions: consumptions.length,
-    }
+    return apiClient.importData(data)
   }
 
-  async function importFromFile(file: File): Promise<{ racks: number; consumptions: number }> {
+  async function importFromFile(file: File): Promise<ImportResult> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = async (e) => {
@@ -103,9 +48,7 @@ export function useExportImport() {
   }
 
   async function resetAllData() {
-    await db.racks.clear()
-    await db.consumptions.clear()
-    await db.syncQueue.clear()
+    await apiClient.deleteAllData()
   }
 
   return {

@@ -11,7 +11,8 @@ Application de suivi de consommation de bois de chauffage, semaine par semaine.
 - **Suivi du niveau restant** : calcule automatiquement a partir des rechargements et consommations
 - **Statistiques annuelles** : graphique de consommation + tableau recapitulatif par semaine
 - **Export/Import des donnees** : sauvegarde JSON pour ne rien perdre
-- **PWA installable** : fonctionne hors-ligne sur mobile et desktop
+- **Compte utilisateur** : les donnees sont stockees sur le serveur et accessibles depuis tous vos appareils
+- **PWA installable** sur mobile et desktop (une connexion est necessaire pour consulter et saisir les releves)
 
 ## Calcul des steres
 
@@ -31,7 +32,6 @@ Les buches plus courtes se tassent mieux, donc le coefficient de conversion vari
 
 - **Nuxt 4** (Vue 3 + Nitro) — front et API regroupes dans un meme projet
 - **Pinia** pour le state management (auto-importe via `@pinia/nuxt`)
-- **Dexie.js** pour le stockage offline (IndexedDB)
 - **Drizzle ORM** + **mysql2** pour la persistance serveur (MariaDB)
 - **bcryptjs** + **jsonwebtoken** pour l'authentification
 - **Chart.js** + vue-chartjs pour les graphiques
@@ -50,15 +50,15 @@ app/                          # Application Vue (UI)
 │   ├── rack/                 # RackForm, RackVisual, RackInfo
 │   ├── consumption/          # ConsumptionForm, ConsumptionList
 │   ├── stats/                # ConsumptionChart, StatsTable
-│   └── sync/                 # SyncSettings, SyncStatus
-├── composables/              # useWeek, useExportImport
-├── pages/                    # index, rack, consumption, stats, settings
-├── plugins/                  # sync.client.ts (init du syncStore)
+│   └── account/              # LoginForm, AccountSettings, PushReminderSettings
+├── composables/              # useWeek, useExportImport, useOnlineStatus, usePushReminder, useToast
+├── middleware/               # auth.global.ts (redirige vers /login sans session)
+├── pages/                    # index, login, releve, historique, rack, stats, settings
+├── plugins/                  # auth.client.ts (restaure la session)
 ├── services/
-│   ├── database/             # Dexie + repositories
 │   ├── calculations/         # Formules steres, semaines ISO, statistiques
-│   └── sync/                 # apiClient, syncService
-└── stores/                   # Pinia stores (rackStore, consumptionStore, syncStore)
+│   └── api/                  # apiClient (appels /api/*, token)
+└── stores/                   # Pinia stores (authStore, rackStore, consumptionStore)
 
 server/                       # API (Nitro)
 ├── api/
@@ -66,15 +66,18 @@ server/                       # API (Nitro)
 │   ├── auth/{register,login}.post.ts + me.get.ts
 │   ├── racks/{index,[id]}.{get,post,put,delete}.ts
 │   ├── consumptions/{index,[id]}.{get,post,put,delete}.ts
-│   └── sync/{index.post,status.get}.ts
+│   ├── data/index.{get,put,delete}.ts   # export / import / reinitialisation
+│   └── push/                 # abonnements Web Push
 ├── database/
 │   ├── schema.ts             # Source de verite Drizzle
 │   └── migrations/           # Migrations SQL (drizzle-kit)
 └── utils/
     ├── db.ts                 # Pool mysql2 + client Drizzle
     ├── auth.ts               # requireAuth(event) — verification JWT
-    ├── mappers.ts            # row -> API
-    └── sync.ts               # logique de synchronisation bidirectionnelle
+    ├── inputs.ts             # validation des body (porte-buches, releves)
+    ├── importData.ts         # preparation d'un import (v1 / v2)
+    ├── userData.ts           # suppression des donnees d'un utilisateur
+    └── mappers.ts            # row -> API
 
 shared/types/                 # Types partages client/serveur
 public/                       # Icones PWA + favicon
@@ -152,7 +155,7 @@ L'application peut etre installee sur votre appareil :
 - Sur mobile : utiliser "Ajouter a l'ecran d'accueil"
 - Sur desktop : cliquer sur l'icone d'installation dans la barre d'adresse
 
-Une fois installee, elle fonctionne hors-ligne grace au Service Worker.
+Une fois installee, elle se lance comme une application native ; une connexion reste necessaire pour acceder aux releves.
 
 ## Licence
 

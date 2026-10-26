@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import SyncStatus from '~/components/sync/SyncStatus.vue'
-
 const route = useRoute()
 
 const titles: Record<string, string> = {
@@ -10,6 +8,7 @@ const titles: Record<string, string> = {
   historique: 'Historique',
   stats: 'Statistiques',
   settings: 'Réglages',
+  login: 'Connexion',
 }
 </script>
 
@@ -17,7 +16,6 @@ const titles: Record<string, string> = {
   <header class="app-header">
     <div class="header-content">
       <h1 class="app-title">{{ titles[route.name as string] ?? 'Buche-Log' }}</h1>
-      <SyncStatus />
     </div>
   </header>
 </template>
