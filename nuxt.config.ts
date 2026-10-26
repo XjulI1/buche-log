@@ -46,6 +46,20 @@ export default defineNuxtConfig({
     dbUser: '',
     dbPassword: '',
     jwtSecret: '',
+    // Rappel hebdomadaire (Web Push) : `pnpm vapid:generate` pour creer les cles
+    vapidPrivateKey: '',
+    vapidSubject: '',
+    public: {
+      vapidPublicKey: '',
+    },
+  },
+
+  nitro: {
+    experimental: { tasks: true },
+    scheduledTasks: {
+      // Toutes les heures : chaque abonne choisit son jour et son heure de rappel
+      '0 * * * *': ['reminders:weekly'],
+    },
   },
 
   pwa: {
@@ -75,6 +89,7 @@ export default defineNuxtConfig({
     workbox: {
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       navigateFallbackDenylist: [/^\/api\//],
+      importScripts: ['push-sw.js'],
     },
   },
 })

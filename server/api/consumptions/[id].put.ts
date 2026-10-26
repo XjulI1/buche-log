@@ -1,11 +1,11 @@
 import { and, eq, isNull } from 'drizzle-orm'
-import type { ConsumptionType } from '#shared/types'
 import { consumptions } from '../../database/schema'
 import { consumptionRowToApi } from '../../utils/mappers'
 
 interface UpdateConsumptionBody {
-  type: ConsumptionType
-  percentage: number
+  level: number
+  reloadFrom?: number | null
+  reloadTo?: number | null
   date: string | Date
   weekNumber: number
   year: number
@@ -33,8 +33,9 @@ export default defineEventHandler(async (event) => {
   await db
     .update(consumptions)
     .set({
-      type: body.type,
-      percentage: body.percentage,
+      level: body.level,
+      reloadFrom: body.reloadFrom ?? null,
+      reloadTo: body.reloadTo ?? null,
       date: new Date(body.date),
       weekNumber: body.weekNumber,
       year: body.year,

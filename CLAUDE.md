@@ -38,12 +38,12 @@ UI (app/pages, app/components)
 ### Key Layers
 
 - **app/** : application Vue 3 (auto-importee par Nuxt)
-  - `pages/` : routing fichier-base (index, rack, consumption, stats, settings)
-  - `components/` : organises par domaine (common, layout, rack, consumption, stats, sync)
-  - `composables/` : useWeek, useExportImport
+  - `pages/` : routing fichier-base (index, releve, historique, stats, rack, settings)
+  - `components/` : organises par domaine (common, layout, rack, reading, stats, sync)
+  - `composables/` : useWeek, useExportImport, useBreakpoint (mobile / desktop >= 900px), useToast, usePushReminder
   - `stores/` : Pinia stores (rackStore, consumptionStore, syncStore) — auto-importes via `@pinia/nuxt`
   - `services/database/` : Dexie + repositories (stockage local IndexedDB)
-  - `services/calculations/` : formules steres, semaines ISO, statistiques
+  - `services/calculations/` : formules steres, semaines ISO, saisons de chauffe, statistiques et prevision
   - `services/sync/` : apiClient ($fetch sur `/api/*` relatif) + syncService (file d'attente offline)
   - `plugins/sync.client.ts` : initialise le syncStore au montage (client-only)
 - **server/** : API Nitro
@@ -54,7 +54,20 @@ UI (app/pages, app/components)
   - `utils/auth.ts` : `requireAuth(event)` — verifie le JWT et attache `event.context.user`
   - `utils/mappers.ts` : conversion lignes DB -> objets API
   - `utils/sync.ts` : logique last-write-wins de la sync bidirectionnelle
+- **shared/utils/** : code partage client/serveur (`isoWeek`, `legacyReadings` = conversion des anciennes saisies)
 - **shared/types/** : types TypeScript partages client/serveur (`Rack`, `ConsumptionEntry`, `SyncRequest`, etc.). Importables via `#shared/types`.
+
+### Releves de niveau
+
+Une entree (`ConsumptionEntry`, table `consumptions`) est un **releve** : le niveau constate (`level`, 0-100).
+Si un rechargement a eu lieu depuis le releve precedent, on stocke le niveau juste avant (`reloadFrom`)
+et juste apres (`reloadTo`). La consommation d'un releve est deduite du releve precedent :
+`(precedent - reloadFrom) + (reloadTo - level)`, ou `precedent - level` sans rechargement.
+
+Les anciennes saisies (`type` + `percentage`, par delta) sont converties par `convertLegacyEntries` :
+migration Dexie v4 cote client, plugin `server/plugins/migrate-readings.ts` cote serveur, import d'un export v1.
+
+Les statistiques sont calculees par **saison de chauffe** (1er octobre -> 30 septembre, cf. `season.ts`).
 
 ### Stere Calculation
 
@@ -86,8 +99,21 @@ Le `syncService` (singleton client) gere une file d'attente locale (`db.syncQueu
 Variables d'environnement consommees par Nuxt (`runtimeConfig` -> `useRuntimeConfig()`) :
 - `NUXT_DB_HOST`, `NUXT_DB_PORT`, `NUXT_DB_NAME`, `NUXT_DB_USER`, `NUXT_DB_PASSWORD`
 - `NUXT_JWT_SECRET`
+- `NUXT_PUBLIC_VAPID_PUBLIC_KEY`, `NUXT_VAPID_PRIVATE_KEY`, `NUXT_VAPID_SUBJECT` (rappel Web Push, generer avec `pnpm vapid:generate`)
 
 Voir `.env.example` pour le gabarit.
+
+### Rappel hebdomadaire (Web Push)
+
+Abonnements dans `push_subscriptions` (jour/heure/fuseau choisis par l'utilisateur). La tache Nitro
+`reminders:weekly` (`server/tasks/`) tourne toutes les heures et notifie ceux qui n'ont pas de releve dans
+la semaine ISO. Les push sont envoyes **sans contenu** (seul l'en-tete VAPID est signe, `server/utils/webPush.ts`) ;
+le texte est fixe dans `public/push-sw.js`, charge par le service worker via `workbox.importScripts`.
+
+### Migrations SQL
+
+Les fichiers de `server/database/migrations/` sont ecrits a la main et appliques dans l'ordre
+(`0000_baseline.sql`, `0001_readings.sql`, `0002_push_subscriptions.sql`).
 
 ### PWA
 

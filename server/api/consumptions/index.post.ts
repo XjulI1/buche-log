@@ -1,14 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
-import type { ConsumptionType } from '#shared/types'
 import { consumptions } from '../../database/schema'
 import { consumptionRowToApi } from '../../utils/mappers'
 
 interface CreateConsumptionBody {
   id?: string
   rackId: string
-  type: ConsumptionType
-  percentage: number
+  level: number
+  reloadFrom?: number | null
+  reloadTo?: number | null
   date: string | Date
   weekNumber: number
   year: number
@@ -27,8 +27,9 @@ export default defineEventHandler(async (event) => {
     id,
     userId: user.id,
     rackId: body.rackId,
-    type: body.type,
-    percentage: body.percentage,
+    level: body.level,
+    reloadFrom: body.reloadFrom ?? null,
+    reloadTo: body.reloadTo ?? null,
     date: new Date(body.date),
     weekNumber: body.weekNumber,
     year: body.year,

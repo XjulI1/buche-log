@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import AppHeader from '~/components/layout/AppHeader.vue'
 import AppNavigation from '~/components/layout/AppNavigation.vue'
+import AppToast from '~/components/common/AppToast.vue'
 </script>
 
 <template>
   <div class="app">
-    <AppHeader />
-    <main class="main-content">
-      <NuxtPage />
-    </main>
     <AppNavigation />
+    <div class="app-main">
+      <AppHeader />
+      <main class="main-content">
+        <NuxtPage />
+      </main>
+    </div>
+    <AppToast />
   </div>
 </template>
 
@@ -20,8 +24,20 @@ import AppNavigation from '~/components/layout/AppNavigation.vue'
   flex-direction: column;
 }
 
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .main-content {
   flex: 1;
-  padding-bottom: 4rem;
+}
+
+@media (min-width: 900px) {
+  .app {
+    flex-direction: row;
+  }
 }
 </style>

@@ -61,6 +61,32 @@ class ApiClient {
     })
   }
 
+  async savePushSubscription(subscription: {
+    endpoint: string
+    remindDay: number
+    remindHour: number
+    timezone: string
+  }): Promise<void> {
+    return this.request('/api/push/subscription', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+    })
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    return this.request('/api/push/subscription', {
+      method: 'DELETE',
+      body: JSON.stringify({ endpoint }),
+    })
+  }
+
+  async sendTestPush(endpoint: string): Promise<void> {
+    return this.request('/api/push/test', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    })
+  }
+
   async checkHealth(): Promise<{ status: string; timestamp: string }> {
     return this.request('/api/health')
   }

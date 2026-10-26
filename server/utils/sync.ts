@@ -128,8 +128,9 @@ export async function processConsumptions(
           id: data.id,
           userId,
           rackId: data.rackId,
-          type: data.type,
-          percentage: data.percentage,
+          level: data.level,
+          reloadFrom: data.reloadFrom ?? null,
+          reloadTo: data.reloadTo ?? null,
           date: new Date(data.date),
           weekNumber: data.weekNumber,
           year: data.year,
@@ -163,8 +164,9 @@ export async function processConsumptions(
             await db
               .update(consumptions)
               .set({
-                type: data.type,
-                percentage: data.percentage,
+                level: data.level,
+                reloadFrom: data.reloadFrom ?? null,
+                reloadTo: data.reloadTo ?? null,
                 date: new Date(data.date),
                 weekNumber: data.weekNumber,
                 year: data.year,

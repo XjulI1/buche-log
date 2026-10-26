@@ -226,7 +226,9 @@ class SyncService {
   private deserializeConsumption(consumption: SyncableConsumptionEntry): SyncableConsumptionEntry {
     return {
       ...consumption,
-      percentage: Number(consumption.percentage),
+      level: Number(consumption.level),
+      reloadFrom: consumption.reloadFrom == null ? null : Number(consumption.reloadFrom),
+      reloadTo: consumption.reloadTo == null ? null : Number(consumption.reloadTo),
       weekNumber: Number(consumption.weekNumber),
       year: Number(consumption.year),
       date: new Date(consumption.date),

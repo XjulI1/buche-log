@@ -65,8 +65,9 @@ export async function createConsumption(
   const entry: SyncableConsumptionEntry = {
     id: generateId(),
     rackId,
-    type: data.type,
-    percentage: data.percentage,
+    level: data.level,
+    reloadFrom: data.reloadFrom ?? null,
+    reloadTo: data.reloadTo ?? null,
     date: data.date,
     weekNumber: week,
     year,

@@ -1,5 +1,6 @@
 import { db } from '~/services/database/db'
 import type { SyncableRack, SyncableConsumptionEntry } from '#shared/types'
+import { convertLegacyEntries, type LegacyEntry } from '#shared/utils/legacyReadings'
 
 interface ExportData {
   version: number
@@ -14,7 +15,7 @@ export function useExportImport() {
     const consumptions = await db.consumptions.filter((c) => !c.deletedAt).toArray()
 
     const data: ExportData = {
-      version: 1,
+      version: 2,
       exportDate: new Date().toISOString(),
       racks,
       consumptions,
@@ -60,8 +61,14 @@ export function useExportImport() {
       syncStatus: 'pending' as const,
     }))
 
+    // Export v1 : saisies par delta (type + percentage) a convertir en releves de niveau
+    const legacy = data.version < 2
+      ? convertLegacyEntries(data.consumptions as unknown as LegacyEntry[])
+      : null
+
     const consumptions: SyncableConsumptionEntry[] = data.consumptions.map((c) => ({
       ...c,
+      ...(legacy?.get(c.id) ?? {}),
       date: new Date(c.date),
       createdAt: new Date(c.createdAt),
       updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(c.createdAt),

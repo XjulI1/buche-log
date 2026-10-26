@@ -5,10 +5,11 @@ const route = useRoute()
 
 const titles: Record<string, string> = {
   index: 'Buche-Log',
-  rack: 'Configuration',
-  consumption: 'Enregistrement',
+  rack: 'Porte-bûches',
+  releve: 'Nouveau relevé',
+  historique: 'Historique',
   stats: 'Statistiques',
-  settings: 'Parametres',
+  settings: 'Réglages',
 }
 </script>
 
@@ -36,6 +37,8 @@ const titles: Record<string, string> = {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .app-title {
@@ -43,5 +46,16 @@ const titles: Record<string, string> = {
   font-weight: 700;
   margin: 0;
   color: var(--color-text);
+}
+
+@media (min-width: 900px) {
+  .app-header {
+    padding: 1.25rem 2rem;
+    background: var(--color-background);
+  }
+
+  .app-title {
+    font-size: 1.5rem;
+  }
 }
 </style>

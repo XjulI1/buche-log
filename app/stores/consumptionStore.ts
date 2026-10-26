@@ -1,13 +1,24 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConsumptionEntry, ConsumptionFormData, WeeklyStats, YearlyStats } from '#shared/types'
+import type {
+  ConsumptionEntry,
+  ConsumptionFormData,
+  Forecast,
+  SeasonStats,
+  WeeklyStats,
+} from '#shared/types'
 import * as consumptionRepo from '~/services/database/consumptionRepository'
 import {
+  calculateConsumptions,
   calculateCurrentLevel,
-  calculateWeeklyStats,
-  calculateYearlyStats,
-  getCurrentWeek,
+  calculateForecast,
   calculateRemainingSteres,
+  calculateSeasonStats,
+  calculateWeeklyStats,
+  getCurrentWeek,
+  getMonday,
+  getPreviousEntry,
+  sortEntries,
 } from '~/services/calculations'
 import { useRackStore } from './rackStore'
 
@@ -18,6 +29,12 @@ export const useConsumptionStore = defineStore('consumption', () => {
 
   const rackStore = useRackStore()
 
+  /** Releves du plus recent au plus ancien */
+  const sortedEntries = computed(() => sortEntries(entries.value).reverse())
+
+  /** Consommation (%) de chaque releve depuis le releve precedent */
+  const consumptions = computed(() => calculateConsumptions(entries.value))
+
   const currentLevel = computed(() => calculateCurrentLevel(entries.value))
 
   const remainingSteres = computed(() => {
@@ -25,16 +42,31 @@ export const useConsumptionStore = defineStore('consumption', () => {
     return calculateRemainingSteres(rackStore.volumeSteres, currentLevel.value)
   })
 
-  const lastEntry = computed(() => {
-    if (entries.value.length === 0) return null
-    return [...entries.value].sort((a, b) => b.date.getTime() - a.date.getTime())[0]
+  const lastEntry = computed(() => sortedEntries.value[0] ?? null)
+
+  const hasReadingThisWeek = computed(() => {
+    const { week, year } = getCurrentWeek()
+    return entries.value.some((e) => e.weekNumber === week && e.year === year)
   })
 
   const currentWeekStats = computed((): WeeklyStats | null => {
     if (!rackStore.rack) return null
-    const { week, year } = getCurrentWeek()
-    return calculateWeeklyStats(entries.value, rackStore.rack, week, year)
+    return calculateWeeklyStats(
+      entries.value,
+      rackStore.rack,
+      getMonday(new Date()),
+      consumptions.value,
+    )
   })
+
+  const forecast = computed((): Forecast | null => {
+    if (!rackStore.rack) return null
+    return calculateForecast(entries.value, rackStore.rack)
+  })
+
+  function previousEntryFor(date: Date, excludeId?: string): ConsumptionEntry | null {
+    return getPreviousEntry(entries.value, date, excludeId)
+  }
 
   async function loadEntries() {
     if (!rackStore.rack) return
@@ -58,6 +90,22 @@ export const useConsumptionStore = defineStore('consumption', () => {
       entries.value = [entry, ...entries.value]
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de l\'ajout'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updateEntry(id: string, data: ConsumptionFormData) {
+    loading.value = true
+    error.value = null
+    try {
+      const updated = await consumptionRepo.updateConsumption(id, data)
+      if (updated) {
+        entries.value = entries.value.map((e) => (e.id === id ? updated : e))
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Erreur lors de la modification'
       throw e
     } finally {
       loading.value = false
@@ -92,29 +140,29 @@ export const useConsumptionStore = defineStore('consumption', () => {
     }
   }
 
-  function getYearlyStats(year: number): YearlyStats | null {
+  function getSeasonStats(season: number): SeasonStats | null {
     if (!rackStore.rack) return null
-    return calculateYearlyStats(entries.value, rackStore.rack, year)
-  }
-
-  function getWeeklyStats(week: number, year: number): WeeklyStats | null {
-    if (!rackStore.rack) return null
-    return calculateWeeklyStats(entries.value, rackStore.rack, week, year)
+    return calculateSeasonStats(entries.value, rackStore.rack, season)
   }
 
   return {
     entries,
     loading,
     error,
+    sortedEntries,
+    consumptions,
     currentLevel,
     remainingSteres,
     lastEntry,
+    hasReadingThisWeek,
     currentWeekStats,
+    forecast,
+    previousEntryFor,
     loadEntries,
     addEntry,
+    updateEntry,
     deleteEntry,
     clearAll,
-    getYearlyStats,
-    getWeeklyStats,
+    getSeasonStats,
   }
 })

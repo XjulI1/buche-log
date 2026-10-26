@@ -1,25 +1,30 @@
 export interface WeeklyStats {
   weekNumber: number
   year: number
-  consumptionPercent: number // total % consumed this week
-  reloadCount: number // number of reloads this week
-  totalConsumedSteres: number
-  entries: number // number of entries
+  weekStart: Date
+  consumedPercent: number // % du porte-buches consomme cette semaine
+  consumedSteres: number
+  reloadCount: number
+  entries: number // nombre de releves
 }
 
-export interface YearlyStats {
-  year: number
+/** Saison de chauffe, identifiee par l'annee de debut (ex. 2026 = oct. 2026 -> sept. 2027) */
+export interface SeasonStats {
+  season: number
   totalConsumedSteres: number
   weeklyAverageSteres: number
-  peakWeek: number // week with highest consumption
-  peakConsumption: number // steres consumed in peak week
-  weeks: WeeklyStats[]
+  peakWeek: WeeklyStats | null
   totalReloads: number
+  readingsCount: number
+  weeks: WeeklyStats[]
 }
 
-export interface CurrentStatus {
-  currentLevel: number // current %
-  lastUpdate: Date | null
-  steresRemaining: number
-  weeklyConsumption: number // steres this week
+export interface Forecast {
+  steresPerWeek: number
+  percentPerWeek: number
+  daysUntilEmpty: number | null
+  emptyDate: Date | null
+  /** Steres encore necessaires jusqu'a la fin de la periode de chauffe */
+  remainingSeasonSteres: number | null
+  basis: 'previous-season' | 'current-rate'
 }

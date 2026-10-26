@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { calculateWeeklyStats, calculateYearlyStats, calculateCurrentLevel } from '../statistics'
+import {
+  calculateConsumptions,
+  calculateCurrentLevel,
+  calculateEntryConsumption,
+  calculateForecast,
+  calculateSeasonStats,
+  calculateWeeklyStats,
+  getPreviousEntry,
+} from '../statistics'
+import { getISOWeek } from '../week'
 import type { ConsumptionEntry, Rack } from '#shared/types'
 
 function createRack(overrides: Partial<Rack> = {}): Rack {
@@ -11,245 +20,179 @@ function createRack(overrides: Partial<Rack> = {}): Rack {
     depth: 50,
     logSize: 33,
     volumeM3: 0.75,
-    volumeSteres: 1.07,
+    volumeSteres: 2,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
   }
 }
 
-function createEntry(overrides: Partial<ConsumptionEntry> = {}): ConsumptionEntry {
+let counter = 0
+function reading(date: Date, level: number, reload?: [number, number]): ConsumptionEntry {
+  const { week, year } = getISOWeek(date)
+  counter++
   return {
-    id: `entry-${Math.random()}`,
+    id: `entry-${counter}`,
     rackId: 'rack-1',
-    type: 'consumption',
-    percentage: 10,
-    date: new Date(2024, 0, 15),
-    weekNumber: 3,
-    year: 2024,
-    createdAt: new Date(),
+    level,
+    reloadFrom: reload?.[0] ?? null,
+    reloadTo: reload?.[1] ?? null,
+    date,
+    weekNumber: week,
+    year,
+    createdAt: new Date(2000, 0, 1, 0, 0, counter),
     updatedAt: new Date(),
-    ...overrides,
   }
 }
 
 describe('statistics calculations', () => {
-  describe('calculateWeeklyStats', () => {
-    it('should return default values for empty entries', () => {
-      const rack = createRack()
-      const result = calculateWeeklyStats([], rack, 1, 2024)
-
-      expect(result).toEqual({
-        weekNumber: 1,
-        year: 2024,
-        consumptionPercent: 0,
-        reloadCount: 0,
-        totalConsumedSteres: 0,
-        entries: 0,
-      })
+  describe('calculateEntryConsumption', () => {
+    it('returns 0 for the first reading without reload', () => {
+      expect(calculateEntryConsumption({ level: 80 }, null)).toBe(0)
     })
 
-    it('should calculate consumption from consumption entries', () => {
-      const rack = createRack({ volumeSteres: 2 })
-      const entries = [
-        createEntry({ type: 'consumption', percentage: 20, date: new Date(2024, 0, 15) }),
-        createEntry({ type: 'consumption', percentage: 10, date: new Date(2024, 0, 18) }),
-      ]
-
-      const result = calculateWeeklyStats(entries, rack, 3, 2024)
-
-      expect(result.consumptionPercent).toBe(30)
-      // 30% of 2 steres = 0.6 steres
-      expect(result.totalConsumedSteres).toBeCloseTo(0.6, 2)
+    it('is the level drop since the previous reading', () => {
+      expect(calculateEntryConsumption({ level: 40 }, { level: 65 })).toBe(25)
     })
 
-    it('should not include reloads in consumption calculation', () => {
-      const rack = createRack({ volumeSteres: 2 })
-      const entries = [
-        createEntry({ type: 'consumption', percentage: 20, date: new Date(2024, 0, 15) }),
-        createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 16) }),
-        createEntry({ type: 'consumption', percentage: 15, date: new Date(2024, 0, 18) }),
-      ]
-
-      const result = calculateWeeklyStats(entries, rack, 3, 2024)
-
-      expect(result.consumptionPercent).toBe(35) // Only consumptions: 20 + 15
-      expect(result.reloadCount).toBe(1)
-      // 35% of 2 steres = 0.7 steres
-      expect(result.totalConsumedSteres).toBeCloseTo(0.7, 2)
+    it('adds consumption before and after a reload', () => {
+      // 65 -> 20 (45 %), recharge a 100, puis 100 -> 80 (20 %)
+      expect(
+        calculateEntryConsumption({ level: 80, reloadFrom: 20, reloadTo: 100 }, { level: 65 }),
+      ).toBe(65)
     })
 
-    it('should filter entries by week and year', () => {
-      const rack = createRack({ volumeSteres: 2 })
-      const entries = [
-        createEntry({ weekNumber: 3, year: 2024, percentage: 20 }),
-        createEntry({ weekNumber: 4, year: 2024, percentage: 50 }), // Different week
-        createEntry({ weekNumber: 3, year: 2023, percentage: 30 }), // Different year
-      ]
-
-      const result = calculateWeeklyStats(entries, rack, 3, 2024)
-
-      expect(result.entries).toBe(1)
-      expect(result.consumptionPercent).toBe(20)
+    it('counts only post-reload consumption for the first reading', () => {
+      expect(calculateEntryConsumption({ level: 90, reloadFrom: 0, reloadTo: 100 }, null)).toBe(10)
     })
 
-    it('should count multiple reloads', () => {
-      const rack = createRack()
-      const entries = [
-        createEntry({ type: 'reload', percentage: 100 }),
-        createEntry({ type: 'reload', percentage: 100 }),
-      ]
-
-      const result = calculateWeeklyStats(entries, rack, 3, 2024)
-
-      expect(result.reloadCount).toBe(2)
-      expect(result.consumptionPercent).toBe(0) // Reloads don't count as consumption
-    })
-  })
-
-  describe('calculateYearlyStats', () => {
-    it('should return empty stats for year with no entries', () => {
-      const rack = createRack()
-      const result = calculateYearlyStats([], rack, 2024)
-
-      expect(result.year).toBe(2024)
-      expect(result.totalConsumedSteres).toBe(0)
-      expect(result.weeklyAverageSteres).toBe(0)
-      expect(result.totalReloads).toBe(0)
-      expect(result.weeks.length).toBe(52)
-    })
-
-    it('should aggregate consumption across weeks', () => {
-      const rack = createRack({ volumeSteres: 2 })
-      const entries = [
-        // Week 1: 20% consumption
-        createEntry({ weekNumber: 1, year: 2024, type: 'consumption', percentage: 20 }),
-        // Week 2: 30% consumption
-        createEntry({ weekNumber: 2, year: 2024, type: 'consumption', percentage: 30 }),
-      ]
-
-      const result = calculateYearlyStats(entries, rack, 2024)
-
-      // Week 1: 20% of 2 = 0.4 steres
-      // Week 2: 30% of 2 = 0.6 steres
-      // Total: 1.0 steres
-      expect(result.totalConsumedSteres).toBeCloseTo(1.0, 2)
-    })
-
-    it('should calculate weekly average only for weeks with data', () => {
-      const rack = createRack({ volumeSteres: 2 })
-      const entries = [
-        createEntry({ weekNumber: 1, year: 2024, type: 'consumption', percentage: 20 }),
-        createEntry({ weekNumber: 2, year: 2024, type: 'consumption', percentage: 30 }),
-      ]
-
-      const result = calculateYearlyStats(entries, rack, 2024)
-
-      // 2 weeks with data, total = 1.0 steres
-      expect(result.weeklyAverageSteres).toBeCloseTo(0.5, 2)
-    })
-
-    it('should find peak consumption week', () => {
-      const rack = createRack({ volumeSteres: 2 })
-      const entries = [
-        // Week 1: small consumption
-        createEntry({ weekNumber: 1, year: 2024, type: 'consumption', percentage: 5 }),
-        // Week 5: big consumption
-        createEntry({ weekNumber: 5, year: 2024, type: 'consumption', percentage: 50 }),
-      ]
-
-      const result = calculateYearlyStats(entries, rack, 2024)
-
-      expect(result.peakWeek).toBe(5)
-      // 50% of 2 steres = 1 stere
-      expect(result.peakConsumption).toBeCloseTo(1.0, 2)
-    })
-
-    it('should count total reloads', () => {
-      const rack = createRack()
-      const entries = [
-        createEntry({ weekNumber: 1, year: 2024, type: 'reload', percentage: 100 }),
-        createEntry({ weekNumber: 3, year: 2024, type: 'reload', percentage: 100 }),
-        createEntry({ weekNumber: 5, year: 2024, type: 'reload', percentage: 100 }),
-      ]
-
-      const result = calculateYearlyStats(entries, rack, 2024)
-
-      expect(result.totalReloads).toBe(3)
+    it('never returns a negative consumption', () => {
+      expect(calculateEntryConsumption({ level: 70 }, { level: 50 })).toBe(0)
     })
   })
 
   describe('calculateCurrentLevel', () => {
-    it('should return 0 for empty entries', () => {
+    it('returns 0 without readings', () => {
       expect(calculateCurrentLevel([])).toBe(0)
     })
 
-    it('should calculate level after reload', () => {
-      const entries = [createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 10) })]
+    it('returns the level of the most recent reading, whatever the input order', () => {
+      const entries = [
+        reading(new Date(2024, 0, 20), 30),
+        reading(new Date(2024, 0, 10), 90),
+        reading(new Date(2024, 0, 15), 60),
+      ]
+      expect(calculateCurrentLevel(entries)).toBe(30)
+    })
+  })
 
-      expect(calculateCurrentLevel(entries)).toBe(100)
+  describe('calculateConsumptions', () => {
+    it('computes each reading against the chronologically previous one', () => {
+      const a = reading(new Date(2024, 0, 1), 100)
+      const b = reading(new Date(2024, 0, 8), 70)
+      const c = reading(new Date(2024, 0, 15), 90, [40, 100])
+      const result = calculateConsumptions([c, a, b])
+      expect(result.get(a.id)).toBe(0)
+      expect(result.get(b.id)).toBe(30)
+      expect(result.get(c.id)).toBe(40)
+    })
+  })
+
+  describe('getPreviousEntry', () => {
+    it('ignores the excluded entry (edition)', () => {
+      const a = reading(new Date(2024, 0, 1), 100)
+      const b = reading(new Date(2024, 0, 8), 70)
+      expect(getPreviousEntry([a, b], new Date(2024, 0, 8), b.id)?.id).toBe(a.id)
+      expect(getPreviousEntry([a, b], new Date(2023, 11, 1))).toBeNull()
+    })
+  })
+
+  describe('calculateWeeklyStats', () => {
+    it('sums consumption and reloads of the week', () => {
+      const rack = createRack({ volumeSteres: 2 })
+      const entries = [
+        reading(new Date(2024, 0, 8), 100),
+        reading(new Date(2024, 0, 15), 70),
+        reading(new Date(2024, 0, 18), 80, [50, 100]),
+      ]
+      const stats = calculateWeeklyStats(entries, rack, new Date(2024, 0, 15))
+      expect(stats.weekNumber).toBe(3)
+      expect(stats.consumedPercent).toBe(30 + 40)
+      expect(stats.consumedSteres).toBeCloseTo(1.4)
+      expect(stats.reloadCount).toBe(1)
+      expect(stats.entries).toBe(2)
+    })
+  })
+
+  describe('calculateSeasonStats', () => {
+    it('covers October to September and compares with the last reading of the previous season', () => {
+      const rack = createRack({ volumeSteres: 2 })
+      const entries = [
+        reading(new Date(2024, 8, 25), 100), // saison 2023
+        reading(new Date(2024, 9, 2), 80), // saison 2024 : 20 %
+        reading(new Date(2024, 9, 9), 50), // 30 %
+        reading(new Date(2025, 9, 1), 10), // saison 2025
+      ]
+      const stats = calculateSeasonStats(entries, rack, 2024)
+      expect(stats.readingsCount).toBe(2)
+      expect(stats.totalConsumedSteres).toBeCloseTo(1)
+      expect(stats.peakWeek?.consumedSteres).toBeCloseTo(0.6)
+      expect(stats.weeks[0]!.weekStart).toEqual(new Date(2024, 8, 30))
+      expect(stats.weeks.every((w) => w.weekStart < new Date(2025, 9, 1))).toBe(true)
     })
 
-    it('should calculate level after consumption', () => {
+    it('averages only weeks with readings', () => {
+      const rack = createRack({ volumeSteres: 1 })
       const entries = [
-        createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 10) }),
-        createEntry({ type: 'consumption', percentage: 30, date: new Date(2024, 0, 15) }),
+        reading(new Date(2024, 10, 4), 100),
+        reading(new Date(2024, 10, 11), 50),
+        reading(new Date(2024, 11, 2), 0),
       ]
+      const stats = calculateSeasonStats(entries, rack, 2024)
+      expect(stats.weeklyAverageSteres).toBeCloseTo(1 / 3)
+    })
+  })
 
-      expect(calculateCurrentLevel(entries)).toBe(70) // 100 - 30
+  describe('calculateForecast', () => {
+    it('returns null with less than two readings', () => {
+      expect(calculateForecast([reading(new Date(2024, 10, 1), 80)], createRack())).toBeNull()
     })
 
-    it('should calculate level after multiple consumptions', () => {
+    it('projects the empty date from the recent rate', () => {
+      const rack = createRack({ volumeSteres: 2 })
       const entries = [
-        createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 10) }),
-        createEntry({ type: 'consumption', percentage: 20, date: new Date(2024, 0, 12) }),
-        createEntry({ type: 'consumption', percentage: 30, date: new Date(2024, 0, 15) }),
+        reading(new Date(2024, 10, 1), 100),
+        reading(new Date(2024, 10, 8), 80),
+        reading(new Date(2024, 10, 15), 60),
       ]
-
-      expect(calculateCurrentLevel(entries)).toBe(50) // 100 - 20 - 30
+      const forecast = calculateForecast(entries, rack, new Date(2024, 10, 15))!
+      expect(forecast.percentPerWeek).toBeCloseTo(20)
+      expect(forecast.steresPerWeek).toBeCloseTo(0.4)
+      expect(forecast.daysUntilEmpty).toBeCloseTo(21)
+      expect(forecast.basis).toBe('current-rate')
+      // 15 nov. -> 1er mai : 167 jours a 20 %/semaine
+      expect(forecast.remainingSeasonSteres).toBeCloseTo((2 * (20 / 7) * 167) / 100)
     })
 
-    it('should add level on new reload', () => {
+    it('uses the previous season when it covers the rest of the heating period', () => {
+      const rack = createRack({ volumeSteres: 1 })
       const entries = [
-        createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 10) }),
-        createEntry({ type: 'consumption', percentage: 50, date: new Date(2024, 0, 12) }),
-        createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 15) }),
-        createEntry({ type: 'consumption', percentage: 20, date: new Date(2024, 0, 17) }),
+        reading(new Date(2023, 10, 1), 100),
+        reading(new Date(2024, 0, 1), 50), // 50 % apres le 15 nov. 2023
+        reading(new Date(2024, 4, 5), 20, [0, 100]), // 50 % + 80 %
+        reading(new Date(2024, 10, 1), 100),
+        reading(new Date(2024, 10, 8), 90),
       ]
-
-      // 0 + 100 = 100, -50 = 50, +100 = 150 (capped at 100), -20 = 80
-      expect(calculateCurrentLevel(entries)).toBe(80)
+      const forecast = calculateForecast(entries, rack, new Date(2024, 10, 15))!
+      expect(forecast.basis).toBe('previous-season')
+      expect(forecast.remainingSeasonSteres).toBeCloseTo(1.8)
     })
 
-    it('should not go below 0', () => {
-      const entries = [
-        createEntry({ type: 'reload', percentage: 50, date: new Date(2024, 0, 10) }),
-        createEntry({ type: 'consumption', percentage: 80, date: new Date(2024, 0, 15) }),
-      ]
-
-      expect(calculateCurrentLevel(entries)).toBe(0) // 50 - 80 = -30, capped at 0
-    })
-
-    it('should handle partial reload', () => {
-      const entries = [
-        createEntry({ type: 'reload', percentage: 100, date: new Date(2024, 0, 10) }),
-        createEntry({ type: 'consumption', percentage: 60, date: new Date(2024, 0, 12) }),
-        createEntry({ type: 'reload', percentage: 80, date: new Date(2024, 0, 15) }),
-      ]
-
-      // 0 + 100 = 100, -60 = 40, +80 = 120 (capped at 100)
-      expect(calculateCurrentLevel(entries)).toBe(100)
-    })
-
-    it('should add small reload to current level', () => {
-      const entries = [
-        createEntry({ type: 'reload', percentage: 70, date: new Date(2024, 0, 10) }),
-        createEntry({ type: 'consumption', percentage: 50, date: new Date(2024, 0, 12) }),
-        createEntry({ type: 'reload', percentage: 5, date: new Date(2024, 0, 15) }),
-      ]
-
-      // 0 + 70 = 70, -50 = 20, +5 = 25
-      expect(calculateCurrentLevel(entries)).toBe(25)
+    it('has no empty date when nothing was consumed', () => {
+      const entries = [reading(new Date(2024, 10, 1), 50), reading(new Date(2024, 10, 8), 50)]
+      const forecast = calculateForecast(entries, createRack(), new Date(2024, 10, 8))!
+      expect(forecast.daysUntilEmpty).toBeNull()
+      expect(forecast.emptyDate).toBeNull()
     })
   })
 })

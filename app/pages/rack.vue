@@ -21,7 +21,7 @@ async function handleSubmit(data: RackFormData) {
     } else {
       await rackStore.createRack(data)
     }
-    router.push({ name: 'home' })
+    router.push('/')
   } catch {
     // Error is handled in store
   }

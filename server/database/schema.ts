@@ -66,8 +66,12 @@ export const consumptions = mysqlTable(
     rackId: varchar('rack_id', { length: 36 })
       .notNull()
       .references(() => racks.id, { onDelete: 'cascade' }),
-    type: mysqlEnum('type', ['reload', 'consumption']).notNull(),
-    percentage: tinyint('percentage', { unsigned: true }).notNull(),
+    level: tinyint('level', { unsigned: true }),
+    reloadFrom: tinyint('reload_from', { unsigned: true }),
+    reloadTo: tinyint('reload_to', { unsigned: true }),
+    // Ancien format (saisie par delta), conserve pour la migration vers `level`
+    type: mysqlEnum('type', ['reload', 'consumption']),
+    percentage: tinyint('percentage', { unsigned: true }),
     date: date('date').notNull(),
     weekNumber: tinyint('week_number', { unsigned: true }).notNull(),
     year: smallint('year', { unsigned: true }).notNull(),
@@ -85,6 +89,25 @@ export const consumptions = mysqlTable(
   }),
 )
 
+export const pushSubscriptions = mysqlTable(
+  'push_subscriptions',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: varchar('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: varchar('endpoint', { length: 500 }).notNull().unique(),
+    remindDay: tinyint('remind_day', { unsigned: true }).notNull(), // 0 = dimanche
+    remindHour: tinyint('remind_hour', { unsigned: true }).notNull(),
+    timezone: varchar('timezone', { length: 64 }).notNull(),
+    lastNotifiedAt: datetime('last_notified_at'),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (t) => ({
+    userIdx: index('idx_push_subscriptions_user_id').on(t.userId),
+  }),
+)
+
 export const syncMetadata = mysqlTable('sync_metadata', {
   userId: varchar('user_id', { length: 36 })
     .primaryKey()
@@ -95,3 +118,4 @@ export const syncMetadata = mysqlTable('sync_metadata', {
 export type UserRow = typeof users.$inferSelect
 export type RackRow = typeof racks.$inferSelect
 export type ConsumptionRow = typeof consumptions.$inferSelect
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect

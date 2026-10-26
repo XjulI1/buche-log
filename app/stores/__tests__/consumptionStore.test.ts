@@ -27,8 +27,7 @@ describe('consumptionStore', () => {
   const mockEntry: SyncableConsumptionEntry = {
     id: 'entry-1',
     rackId: 'rack-1',
-    type: 'consumption',
-    percentage: 20,
+    level: 80,
     date: new Date('2024-01-15'),
     weekNumber: 3,
     year: 2024,
@@ -37,8 +36,7 @@ describe('consumptionStore', () => {
   }
 
   const mockFormData: ConsumptionFormData = {
-    type: 'consumption',
-    percentage: 20,
+    level: 80,
     date: new Date('2024-01-15'),
   }
 
@@ -168,14 +166,16 @@ describe('consumptionStore', () => {
       const store = useConsumptionStore()
       store.$patch({
         entries: [
-          { ...mockEntry, type: 'reload', percentage: 100, date: new Date('2024-01-10') },
-          { ...mockEntry, type: 'consumption', percentage: 30, date: new Date('2024-01-15') },
-          { ...mockEntry, type: 'consumption', percentage: 20, date: new Date('2024-01-20') },
+          { ...mockEntry, id: 'a', level: 100, date: new Date('2024-01-10') },
+          { ...mockEntry, id: 'c', level: 50, date: new Date('2024-01-20') },
+          { ...mockEntry, id: 'b', level: 70, date: new Date('2024-01-15') },
         ],
       })
 
-      // 100 - 30 - 20 = 50
+      // Niveau du releve le plus recent
       expect(store.currentLevel).toBe(50)
+      expect(store.consumptions.get('b')).toBe(30)
+      expect(store.consumptions.get('c')).toBe(20)
     })
 
     it('should calculate remaining steres', () => {
@@ -184,8 +184,8 @@ describe('consumptionStore', () => {
       const store = useConsumptionStore()
       store.$patch({
         entries: [
-          { ...mockEntry, type: 'reload', percentage: 100, date: new Date('2024-01-10') },
-          { ...mockEntry, type: 'consumption', percentage: 50, date: new Date('2024-01-20') },
+          { ...mockEntry, id: 'a', level: 100, date: new Date('2024-01-10') },
+          { ...mockEntry, id: 'b', level: 50, date: new Date('2024-01-20') },
         ],
       })
 
@@ -203,49 +203,52 @@ describe('consumptionStore', () => {
     })
   })
 
-  describe('getYearlyStats', () => {
-    it('should return yearly stats when rack exists', () => {
-      setupRackStore()
+  describe('updateEntry', () => {
+    it('should replace the updated entry', async () => {
+      const updated = { ...mockEntry, level: 60, date: new Date('2024-01-08'), weekNumber: 2 }
+      vi.mocked(consumptionRepo.updateConsumption).mockResolvedValue(updated)
 
       const store = useConsumptionStore()
       store.$patch({ entries: [mockEntry] })
 
-      const stats = store.getYearlyStats(2024)
+      await store.updateEntry('entry-1', { level: 60, date: new Date('2024-01-08') })
 
-      expect(stats).not.toBeNull()
-      expect(stats?.year).toBe(2024)
-    })
-
-    it('should return null when no rack exists', () => {
-      const store = useConsumptionStore()
-      store.$patch({ entries: [mockEntry] })
-
-      const stats = store.getYearlyStats(2024)
-
-      expect(stats).toBeNull()
+      expect(consumptionRepo.updateConsumption).toHaveBeenCalledWith('entry-1', {
+        level: 60,
+        date: new Date('2024-01-08'),
+      })
+      expect(store.entries).toEqual([updated])
     })
   })
 
-  describe('getWeeklyStats', () => {
-    it('should return weekly stats when rack exists', () => {
+  describe('previousEntryFor', () => {
+    it('should ignore the entry being edited', () => {
+      const store = useConsumptionStore()
+      const older = { ...mockEntry, id: 'older', date: new Date('2024-01-08') }
+      store.$patch({ entries: [older, mockEntry] })
+
+      expect(store.previousEntryFor(new Date('2024-01-15'), 'entry-1')?.id).toBe('older')
+    })
+  })
+
+  describe('getSeasonStats', () => {
+    it('should return season stats when rack exists', () => {
       setupRackStore()
 
       const store = useConsumptionStore()
       store.$patch({ entries: [mockEntry] })
 
-      const stats = store.getWeeklyStats(3, 2024)
+      const stats = store.getSeasonStats(2023)
 
       expect(stats).not.toBeNull()
-      expect(stats?.weekNumber).toBe(3)
-      expect(stats?.year).toBe(2024)
+      expect(stats?.season).toBe(2023)
+      expect(stats?.readingsCount).toBe(1)
     })
 
     it('should return null when no rack exists', () => {
       const store = useConsumptionStore()
 
-      const stats = store.getWeeklyStats(3, 2024)
-
-      expect(stats).toBeNull()
+      expect(store.getSeasonStats(2023)).toBeNull()
     })
   })
 })

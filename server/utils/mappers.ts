@@ -21,8 +21,9 @@ export function consumptionRowToApi(row: ConsumptionRow): ConsumptionEntry {
   return {
     id: row.id,
     rackId: row.rackId,
-    type: row.type,
-    percentage: row.percentage,
+    level: row.level ?? 0,
+    reloadFrom: row.reloadFrom,
+    reloadTo: row.reloadTo,
     date: row.date instanceof Date ? row.date : new Date(row.date),
     weekNumber: row.weekNumber,
     year: row.year,

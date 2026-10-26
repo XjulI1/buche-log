@@ -125,8 +125,21 @@ a:hover {
 
 .page {
   flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
   padding: var(--spacing-md);
-  padding-bottom: 5rem; /* Space for nav */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom)); /* Space for nav */
+}
+
+.page.wide {
+  max-width: 1280px;
+}
+
+@media (min-width: 900px) {
+  .page {
+    padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+  }
 }
 
 .sr-only {

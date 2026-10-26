@@ -7,6 +7,7 @@ import { useExportImport } from '~/composables'
 import BaseButton from '~/components/common/BaseButton.vue'
 import BaseCard from '~/components/common/BaseCard.vue'
 import SyncSettings from '~/components/sync/SyncSettings.vue'
+import PushReminderSettings from '~/components/sync/PushReminderSettings.vue'
 
 const router = useRouter()
 const rackStore = useRackStore()
@@ -64,7 +65,7 @@ async function handleReset() {
     await resetAllData()
     await rackStore.loadRack()
     await consumptionStore.loadEntries()
-    router.push({ name: 'home' })
+    router.push('/')
   } catch {
     alert('Erreur lors de la reinitialisation')
   }
@@ -80,6 +81,10 @@ function goToRackConfig() {
     <div class="settings-content">
       <BaseCard title="Synchronisation">
         <SyncSettings />
+      </BaseCard>
+
+      <BaseCard title="Rappel hebdomadaire">
+        <PushReminderSettings />
       </BaseCard>
 
       <BaseCard title="Porte-buches">

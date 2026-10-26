@@ -19,7 +19,8 @@
     "type-check": "nuxt typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "vapid:generate": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.11.2",

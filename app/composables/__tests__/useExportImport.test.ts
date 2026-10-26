@@ -45,8 +45,7 @@ describe('useExportImport', () => {
   const mockConsumption: SyncableConsumptionEntry = {
     id: 'entry-1',
     rackId: 'rack-1',
-    type: 'consumption',
-    percentage: 20,
+    level: 80,
     date: new Date('2024-01-15'),
     weekNumber: 3,
     year: 2024,
@@ -73,7 +72,7 @@ describe('useExportImport', () => {
       const result = await exportData()
       const parsed = JSON.parse(result)
 
-      expect(parsed.version).toBe(1)
+      expect(parsed.version).toBe(2)
       expect(parsed.exportDate).toBeDefined()
       expect(parsed.racks).toHaveLength(1)
       expect(parsed.consumptions).toHaveLength(1)
@@ -101,7 +100,7 @@ describe('useExportImport', () => {
   describe('importData', () => {
     it('should import valid JSON data', async () => {
       const importJson = JSON.stringify({
-        version: 1,
+        version: 2,
         exportDate: '2024-01-01T00:00:00.000Z',
         racks: [mockRack],
         consumptions: [mockConsumption],
@@ -127,7 +126,7 @@ describe('useExportImport', () => {
 
     it('should convert date strings to Date objects', async () => {
       const importJson = JSON.stringify({
-        version: 1,
+        version: 2,
         exportDate: '2024-01-01T00:00:00.000Z',
         racks: [
           {
@@ -162,6 +161,27 @@ describe('useExportImport', () => {
       expect(consumptionsCall?.[0]?.date).toBeInstanceOf(Date)
       expect(consumptionsCall?.[0]?.createdAt).toBeInstanceOf(Date)
       expect(consumptionsCall?.[0]?.updatedAt).toBeInstanceOf(Date)
+    })
+  })
+
+  describe('importData (export v1)', () => {
+    it('should convert legacy delta entries into level readings', async () => {
+      const importJson = JSON.stringify({
+        version: 1,
+        exportDate: '2024-01-01T00:00:00.000Z',
+        racks: [mockRack],
+        consumptions: [
+          { id: 'r', rackId: 'rack-1', type: 'reload', percentage: 100, date: '2024-01-01', createdAt: '2024-01-01' },
+          { id: 'c', rackId: 'rack-1', type: 'consumption', percentage: 30, date: '2024-01-08', createdAt: '2024-01-08' },
+        ],
+      })
+
+      const { importData } = useExportImport()
+      await importData(importJson)
+
+      const imported = vi.mocked(db.consumptions.bulkAdd).mock.calls[0]?.[0] as SyncableConsumptionEntry[]
+      expect(imported.find((e) => e.id === 'r')).toMatchObject({ level: 100, reloadFrom: 0, reloadTo: 100 })
+      expect(imported.find((e) => e.id === 'c')).toMatchObject({ level: 70, reloadFrom: null })
     })
   })
 
