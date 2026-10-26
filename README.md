@@ -36,6 +36,7 @@ Les buches plus courtes se tassent mieux, donc le coefficient de conversion vari
 - **bcryptjs** + **jsonwebtoken** pour l'authentification
 - **Chart.js** + vue-chartjs pour les graphiques
 - **@vite-pwa/nuxt** pour la Progressive Web App
+- **TypeScript** strict, **ESLint** (config flat via `@nuxt/eslint`) et **Vitest** (+ happy-dom) pour les tests
 
 ## Structure du projet
 
@@ -110,10 +111,10 @@ Le build genere `.output/` (sortie Nitro).
 ## Autres commandes
 
 ```sh
-pnpm typecheck              # Verification des types TypeScript
-pnpm lint                   # oxlint + eslint
-pnpm test:unit              # Tests unitaires (Vitest)
-pnpm format                 # Prettier sur app/ server/ shared/
+pnpm type-check             # Verification des types TypeScript
+pnpm lint                   # ESLint
+pnpm test                   # Tests unitaires (Vitest)
+pnpm test:watch             # Tests unitaires en mode watch
 pnpm db:generate            # Generer une migration depuis le schema Drizzle
 pnpm db:migrate             # Appliquer les migrations
 pnpm db:studio              # Interface Drizzle Studio

@@ -8,10 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm dev          # Start Nuxt dev server (http://localhost:3000) - UI + API
 pnpm build        # Production build (Nitro output in .output/)
 pnpm preview      # Serve the built app + API
-pnpm typecheck    # TypeScript verification (nuxt typecheck)
-pnpm lint         # Run oxlint then eslint with autofix
-pnpm test:unit    # Run tests with Vitest
-pnpm format       # Format code with Prettier (app/ server/ shared/)
+pnpm type-check   # TypeScript verification (nuxt typecheck)
+pnpm lint         # Run ESLint
+pnpm test         # Run tests once with Vitest (happy-dom)
+pnpm test:watch   # Run Vitest in watch mode
 pnpm db:generate  # Generate a Drizzle migration from schema changes
 pnpm db:migrate   # Apply pending migrations to MariaDB
 pnpm db:studio    # Open Drizzle Studio
@@ -19,7 +19,7 @@ pnpm db:studio    # Open Drizzle Studio
 
 Run a single test file:
 ```bash
-pnpm test:unit app/services/calculations/stere.test.ts
+pnpm test app/services/calculations/__tests__/stere.test.ts
 ```
 
 ## Architecture

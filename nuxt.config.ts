@@ -8,6 +8,17 @@ export default defineNuxtConfig({
 
   css: ['~/assets/styles/main.css'],
 
+  typescript: {
+    strict: true,
+    tsConfig: {
+      compilerOptions: {
+        noUncheckedIndexedAccess: true,
+        noImplicitOverride: true,
+        noFallthroughCasesInSwitch: true,
+      },
+    },
+  },
+
   app: {
     head: {
       htmlAttrs: { lang: 'fr' },
