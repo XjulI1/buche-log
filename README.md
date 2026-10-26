@@ -85,15 +85,15 @@ Dockerfile
 ## Installation
 
 ```sh
-yarn install
+pnpm install
 cp .env.example .env          # ajuster les valeurs DB et JWT
-yarn db:migrate               # applique le schema MariaDB
+pnpm db:migrate               # applique le schema MariaDB
 ```
 
 ## Developpement
 
 ```sh
-yarn dev
+pnpm dev
 ```
 
 L'application est disponible sur `http://localhost:3000` (UI et `/api/*` sur la meme origine).
@@ -101,8 +101,8 @@ L'application est disponible sur `http://localhost:3000` (UI et `/api/*` sur la 
 ## Build de production
 
 ```sh
-yarn build
-yarn preview
+pnpm build
+pnpm preview
 ```
 
 Le build genere `.output/` (sortie Nitro).
@@ -110,13 +110,13 @@ Le build genere `.output/` (sortie Nitro).
 ## Autres commandes
 
 ```sh
-yarn typecheck              # Verification des types TypeScript
-yarn lint                   # oxlint + eslint
-yarn test:unit              # Tests unitaires (Vitest)
-yarn format                 # Prettier sur app/ server/ shared/
-yarn db:generate            # Generer une migration depuis le schema Drizzle
-yarn db:migrate             # Appliquer les migrations
-yarn db:studio              # Interface Drizzle Studio
+pnpm typecheck              # Verification des types TypeScript
+pnpm lint                   # oxlint + eslint
+pnpm test:unit              # Tests unitaires (Vitest)
+pnpm format                 # Prettier sur app/ server/ shared/
+pnpm db:generate            # Generer une migration depuis le schema Drizzle
+pnpm db:migrate             # Appliquer les migrations
+pnpm db:studio              # Interface Drizzle Studio
 ```
 
 ## Docker

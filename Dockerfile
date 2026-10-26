@@ -1,15 +1,16 @@
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
-RUN corepack enable
+# Node >= 25 n'embarque plus corepack
+RUN npm install -g corepack@latest && corepack enable
 
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN yarn build
+RUN pnpm build
 
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 RUN addgroup -g 1001 -S nodejs && \
