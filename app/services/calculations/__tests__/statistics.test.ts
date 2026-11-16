@@ -188,6 +188,30 @@ describe('statistics calculations', () => {
       expect(forecast.remainingSeasonSteres).toBeCloseTo(1.8)
     })
 
+    it('ignores a long gap before the recent readings (summer)', () => {
+      const rack = createRack({ volumeSteres: 1 })
+      const entries = [
+        reading(new Date(2026, 2, 15), 40),
+        reading(new Date(2026, 9, 20), 80, [10, 100]), // rechargement apres l'ete
+        reading(new Date(2026, 9, 27), 70),
+        reading(new Date(2026, 10, 3), 50),
+        reading(new Date(2026, 10, 10), 30),
+      ]
+      const forecast = calculateForecast(entries, rack, new Date(2026, 10, 16))!
+      // 50 % en 3 semaines, sans diluer sur les 7 mois sans releve
+      expect(forecast.percentPerWeek).toBeCloseTo(50 / 3, 1)
+    })
+
+    it('prorates the reading that straddles the start of the window', () => {
+      const entries = [
+        reading(new Date(2024, 9, 1), 100),
+        reading(new Date(2024, 9, 15), 72), // 28 % en 14 jours, dont 7 dans la fenetre
+        reading(new Date(2024, 10, 5), 30),
+      ]
+      const forecast = calculateForecast(entries, createRack(), new Date(2024, 10, 5))!
+      expect(forecast.percentPerWeek).toBeCloseTo(((14 + 42) / 28) * 7, 1)
+    })
+
     it('has no empty date when nothing was consumed', () => {
       const entries = [reading(new Date(2024, 10, 1), 50), reading(new Date(2024, 10, 8), 50)]
       const forecast = calculateForecast(entries, createRack(), new Date(2024, 10, 8))!

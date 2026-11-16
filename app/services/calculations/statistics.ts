@@ -135,6 +135,41 @@ export function calculateSeasonStats(
 }
 
 /**
+ * Consommation (en %) et duree (en jours) observees sur la fenetre recente.
+ * La consommation d'un releve est repartie uniformement entre le releve precedent et lui :
+ * seule la part qui tombe dans la fenetre est comptee. Si l'intervalle a cheval sur le debut
+ * de la fenetre est plus long que la fenetre elle-meme (trou de saisie, ete...), la fenetre
+ * commence au premier releve qu'elle contient pour ne pas diluer le rythme.
+ */
+function measureRecentConsumption(
+  sorted: ConsumptionEntry[],
+  consumptions: Map<string, number>,
+  now: Date,
+): { consumedPercent: number; days: number } {
+  const last = sorted[sorted.length - 1]!
+  let windowStart = Math.max(now.getTime() - FORECAST_WINDOW_DAYS * DAY_MS, sorted[0]!.date.getTime())
+
+  const firstInside = sorted.findIndex((e) => e.date.getTime() > windowStart)
+  if (firstInside <= 0) return { consumedPercent: 0, days: 0 }
+  const straddling = sorted[firstInside]!.date.getTime() - sorted[firstInside - 1]!.date.getTime()
+  if (straddling > FORECAST_WINDOW_DAYS * DAY_MS) {
+    windowStart = sorted[firstInside]!.date.getTime()
+  }
+
+  let consumedPercent = 0
+  for (let i = 1; i < sorted.length; i++) {
+    const start = sorted[i - 1]!.date.getTime()
+    const end = sorted[i]!.date.getTime()
+    if (end <= windowStart) continue
+    const consumed = consumptions.get(sorted[i]!.id) ?? 0
+    const span = end - start
+    consumedPercent += span > 0 ? (consumed * (end - Math.max(start, windowStart))) / span : consumed
+  }
+
+  return { consumedPercent, days: (last.date.getTime() - windowStart) / DAY_MS }
+}
+
+/**
  * Prevision basee sur le rythme des 4 dernieres semaines.
  * Les steres restant a consommer sur la saison s'appuient sur la saison precedente
  * a la meme periode si elle est connue, sinon sur le rythme actuel.
@@ -148,14 +183,10 @@ export function calculateForecast(
   const last = sorted[sorted.length - 1]
   if (!last || sorted.length < 2) return null
 
-  const windowStart = now.getTime() - FORECAST_WINDOW_DAYS * DAY_MS
-  const baseline = [...sorted].reverse().find((e) => e.date.getTime() <= windowStart) ?? sorted[0]!
   const consumptions = calculateConsumptions(sorted)
-  const recent = sorted.filter((e) => e.date.getTime() > baseline.date.getTime())
-  const days = (last.date.getTime() - baseline.date.getTime()) / DAY_MS
-  if (recent.length === 0 || days < 1) return null
+  const { consumedPercent, days } = measureRecentConsumption(sorted, consumptions, now)
+  if (days < 1) return null
 
-  const consumedPercent = recent.reduce((sum, e) => sum + (consumptions.get(e.id) ?? 0), 0)
   const percentPerDay = consumedPercent / days
   const percentPerWeek = percentPerDay * 7
 
